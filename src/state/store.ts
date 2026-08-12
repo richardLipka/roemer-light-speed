@@ -75,7 +75,10 @@ export class Store {
     walkthroughStep: 1,
     rateIndex: DEFAULT_RATE_INDEX,
     mapZoom: 1,
-    moonZoom: 2,
+    // One, so the inset opens showing all four orbits including Callisto's.
+    // It was two, which put Callisto's ring 862 pixels across a 480-pixel box
+    // and quietly cropped half the system out of the panel meant to show it.
+    moonZoom: 1,
   };
 
   private readonly listeners = new Set<(state: State) => void>();

@@ -49,9 +49,14 @@ export function createJovian(store: Store): JovianView {
     return { id, seen, actual, link, orbit };
   });
 
+  const title = el('h2', 'panel__title');
   const caption = el('p', 'jovian__caption');
+  // Why these four bodies are a clock at all. Without it the inset is a pretty
+  // diagram; with it, it is the premise the whole measurement rests on.
+  const clock = el('p', 'note');
+
   const root = el('div', 'jovian');
-  root.append(field, caption);
+  root.append(title, field, caption, clock);
 
   return {
     root,
@@ -87,6 +92,9 @@ export function createJovian(store: Store): JovianView {
       const angle = Math.atan2(-(scene.jupiter.y - scene.sun.y), scene.jupiter.x - scene.sun.x);
       shadow.style.setProperty('--angle', `${angle}rad`);
       shadow.style.setProperty('--length', `${OUTERMOST_AU * unit * 1.4}%`);
+
+      title.textContent = translate(locale, 'jovian.title');
+      clock.textContent = translate(locale, 'jovian.clock');
 
       const target = scene.moons.find((m) => m.id === watched);
       caption.textContent = target

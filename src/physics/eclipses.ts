@@ -176,6 +176,49 @@ export function nextEclipse(
 }
 
 /**
+ * The eclipse an observer was watching when they pressed the key.
+ *
+ * Matched on **seen** time, because that is the only clock the observer has —
+ * they are timing the arrival of the news, not the event. Returns null when
+ * nothing happened near enough to be what they meant, which is what stops a
+ * stray key press from entering the log as an eclipse three hours late.
+ *
+ * The first version of the recorder asked `nextEclipse` for the next event at
+ * or after *two periods ago*, which is an eclipse three and a half days in the
+ * past. Every logged observation came out about 2 800 minutes late and the
+ * whole measurement was nonsense.
+ */
+export function nearestEclipse(
+  positionsAt: PositionsAt,
+  moon: BodyId,
+  jdSeen: number,
+  toleranceDays = 30 / 1440,
+  phase?: EclipsePhase,
+): Eclipse | null {
+  const orbit = BODIES[moon].satellite;
+  if (!orbit) throw new Error(`'${moon}' is not a satellite`);
+
+  // A period and a half either side is comfortably more than enough to hold the
+  // event nearest any instant, whichever phase is wanted.
+  const window = orbit.periodDays * 1.5;
+  const candidates = findEclipses(positionsAt, moon, jdSeen - window, jdSeen + window).filter(
+    (eclipse) => !phase || eclipse.phase === phase,
+  );
+
+  let best: Eclipse | null = null;
+  let bestGap = Infinity;
+  for (const eclipse of candidates) {
+    const gap = Math.abs(eclipse.jdSeen - jdSeen);
+    if (gap < bestGap) {
+      bestGap = gap;
+      best = eclipse;
+    }
+  }
+
+  return best && bestGap <= toleranceDays ? best : null;
+}
+
+/**
  * Bisect to the crossing, then re-cut once with the axis taken at the answer.
  *
  * The first pass holds the shadow axis fixed, which is what keeps the engine out

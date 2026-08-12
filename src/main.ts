@@ -19,7 +19,7 @@ import { BODIES } from '@orrery/core';
 import { translate } from './i18n/i18n.js';
 import { nextExtremum } from './physics/configuration.js';
 import { DEFAULT_MOON, GALILEAN_IDS } from './physics/constants.js';
-import { nextEclipse } from './physics/eclipses.js';
+import { nearestEclipse, nextEclipse } from './physics/eclipses.js';
 import type { Observation } from './physics/solve.js';
 import { ObservationLog } from './state/log.js';
 import { RATE_LADDER, Store } from './state/store.js';
@@ -27,6 +27,7 @@ import { createLogPanel } from './log/logPanel.js';
 import { createSolveView } from './log/solveView.js';
 import { createWalkthrough } from './walkthrough/walkthrough.js';
 import { createControls } from './view/controls.js';
+import { createComparison } from './view/comparison.js';
 import { createDelayCurve } from './view/delayCurve.js';
 import { button, el } from './view/dom.js';
 import { createJovian } from './view/jovian.js';
@@ -73,10 +74,11 @@ const jovian = createJovian(store);
 const readout = createReadout(store);
 const telescope = createTelescope(store);
 const walkthrough = createWalkthrough(store);
-const logPanel = createLogPanel(store, log, loadSampleLog);
+const logPanel = createLogPanel(store, log, loadSampleLog, () => record());
 const solveView = createSolveView(store, log);
 const controls = createControls(store, actions);
 const delayCurveView = createDelayCurve(store);
+const comparison = createComparison(store, log);
 
 const topBar = el('div', 'topbar');
 
@@ -87,7 +89,7 @@ const left = el('div', 'dock dock--left');
 left.append(controls.root, walkthrough.root);
 
 const right = el('div', 'dock dock--right');
-right.append(readout.root, delayCurveView.root, logPanel.root, solveView.root);
+right.append(readout.root, delayCurveView.root, logPanel.root, solveView.root, comparison.root);
 
 const notice = el('p', 'notice');
 
@@ -100,21 +102,34 @@ document.body.append(app);
 /**
  * The student's reading, and it is theirs — what gets logged is the moment they
  * pressed, not the moment the eclipse actually happened. CLAUDE.md §7.1.
+ *
+ * Matched against the eclipse **nearest in seen time**, since the arrival of the
+ * news is the only clock an observer has. A press with no eclipse near it is
+ * refused and says so: the first version asked for the next eclipse two periods
+ * in the past and logged every observation about 2 800 minutes late.
  */
 function record(): void {
-  const scene = buildScene(store.clock.julianDate, MOON_PERIODS);
-  const eclipse = nextEclipse(
-    scenePositions,
-    store.current.moon,
-    store.clock.julianDate - 2 * BODIES[store.current.moon].satellite!.periodDays,
-  );
+  const { locale, moon } = store.current;
+  const pressed = store.clock.julianDate;
+  const eclipse = nearestEclipse(scenePositions, moon, pressed);
+
+  if (!eclipse) {
+    logPanel.report(translate(locale, 'log.nothingThere'));
+    return;
+  }
 
   log.add({
-    jdRecorded: store.clock.julianDate,
+    jdRecorded: pressed,
     jdPredicted: eclipse.jdTrue,
     phase: eclipse.phase,
-    distanceAu: scene.earthJupiterAu,
+    distanceAu: eclipse.distanceAu,
   });
+
+  logPanel.report(
+    translate(locale, 'log.recorded', {
+      minutes: ((pressed - eclipse.jdTrue) * 1440).toFixed(1),
+    }),
+  );
 }
 
 /**
@@ -210,6 +225,7 @@ function renderScene(): void {
   readout.render(scene);
   telescope.render(scene);
   delayCurveView.render(scene.jd);
+  comparison.render(scene);
 }
 
 function frame(now: number): void {

@@ -342,16 +342,33 @@ did, and then what Rømer did with their book.
 
 ### 7.1 Observing
 
-Run the clock, watch the Jovian system, and time the moment Io disappears into
-the shadow or reappears from it. The map is the whole solar system (§9), but
-timing an eclipse needs the telescope view: the four Galilean moons strung out
-beside Jupiter's disc, as they look in an eyepiece, with Io fading out over
-§5.5's three and a half minutes. The student presses a key at the moment they
-judge it gone.
+Run the clock, watch the Jovian system, and time the moment the moon disappears
+into the shadow or reappears from it. The map is the whole solar system (§9),
+but timing an eclipse needs the telescope view: the four Galilean moons strung
+out beside Jupiter's disc, as they look in an eyepiece, with the watched one
+fading out over §5.5's three and a half minutes.
 
 **What gets logged is the time they pressed, not the true time.** The error they
 make is part of the exercise, and with a couple of dozen eclipses it averages
 down in front of them.
+
+**The way in has to be visible.** The first version bound recording to the space
+bar and mentioned it in one italic hint, which is the same as having no way in
+at all. The panel now carries three numbered steps in the order they are done
+and a large button as the primary action, with the key offered beside it as the
+shortcut it is — the button is how you find out the key exists.
+
+**A press is matched to the eclipse nearest it in *seen* time.** That is the only
+clock an observer has: they are timing the arrival of the news, not the event.
+A press with nothing within half an hour is **refused**, and says so, because a
+stray key must not enter the log as an observation.
+
+That matching is where the recorder was most badly wrong. It asked for the next
+eclipse at or after *two periods ago* — an event three and a half days in the
+past — so every row came out about **2 800 minutes late** and the whole
+measurement was nonsense. `nearestEclipse.test.ts` pins down both the fix and
+the failure, including that matching on true time rather than seen time must not
+work.
 
 ### 7.2 The log
 
@@ -517,6 +534,33 @@ are guaranteed to be showing the same configuration — the second seen end-on.
 A moon further from Earth than Jupiter and within its disc is hidden exactly as
 an eclipsed one is, because an observer at the eyepiece cannot tell them apart.
 
+### 9.1a The Jovian inset shows the whole system, and says why it is a clock
+
+All four Galileans with all four orbits, in a **square** field. It was a 2.2:1
+strip at zoom 2, which put Callisto's ring 862 pixels across a 480-pixel box:
+orbits are circles, so a wide short panel crops the outer two clean out of the
+panel whose entire job is showing them. Square, at zoom 1, all four fit.
+
+The inset carries a standing paragraph on **why these bodies are a clock at
+all** — each moon circles at a fixed rate, Io every 1.77 days through to
+Callisto's 16.69, and each vanishes into the shadow once per orbit. That is the
+premise the whole measurement rests on, and without it the panel is a pretty
+diagram. The argument a student has to be able to make is: *if the eclipses
+arrive at the wrong time, the fault cannot be in the clock.*
+
+### 9.1b Observed against real, after the measurement
+
+Once a speed has been fitted, the number needs turning back into a picture. The
+comparison panel states, for the moment on screen, **the same fact three ways**:
+the light left this many minutes ago, the moon has moved this many degrees
+since, and the light had this far to travel. Three numbers, one fact — a student
+who reads them as three separate facts has not got it yet.
+
+Below that, once there are at least three observations, it closes the loop with
+the student's *own* figure: *you got 297 428 km/s, which would make the delay
+51.9 minutes — that is 0.4 minutes from the real delay.* Their measurement error,
+turned back into the quantity they were measuring.
+
 ### 9.2 The delay curve
 
 Light time plotted against date over three years, with the nearest and furthest
@@ -629,6 +673,7 @@ src/
     jovian.ts         # the inset — and the only place the ghosts are legible
     telescope.ts      # eyepiece strip; the timing surface
     readout.ts        # light time and distance
+    comparison.ts     # observed against real, and the student's own number
     delayCurve.ts     # light time against date; the setup, not the answer
     controls.ts       # the left dock: time, zoom, moon, jumps
     format.ts         # locale-aware numbers, dates and units — see §10
@@ -695,6 +740,10 @@ one corresponds to a sentence above that would otherwise be unverified.
   zero distance would be seen instantly, so the intercept is fitted rather than
   forced, and its coming out near zero is a result rather than an assumption.
 - The quoted uncertainty covers the true value, and shrinks on cleaner readings.
+- **A key press matches the eclipse nearest it in *seen* time**, gives a lateness
+  of 30–55 minutes, and matching on *true* time instead fails. A press with no
+  eclipse near it returns nothing rather than an observation. This is the
+  regression suite for the 2 800-minute bug in §7.1.
 - The nearest approach is a real turning point rather than a low sample, lands
   near 4.2 AU, and the furthest near 6.2; the two alternate, and every nearest is
   closer than every furthest.
