@@ -1,26 +1,21 @@
 {
   "app.title": "Rømer — the first measurement of the speed of light",
   "app.subtitle": "How the eclipses of one of Jupiter's moons give you the speed of light",
-
   "readout.lightAge": "Light from Jupiter is {minutes} minutes old",
   "readout.distance": "Jupiter is {millionKm} million km away right now",
   "readout.distanceAu": "({au} AU)",
   "readout.date": "Date",
-
   "map.seen": "where we see it",
   "map.actual": "where it really is",
   "map.legend": "The solid marker is what we see from Earth. The faint one is where the body really is right now. The gap between them is the distance the light is still crossing.",
-
   "telescope.title": "Through the telescope",
   "telescope.hint": "Io is going into Jupiter's shadow. It takes about three and a half minutes — press the space bar the moment you think it has gone.",
-  "telescope.inShadow": "Io is in shadow",
-  "telescope.visible": "Io is visible",
-
+  "telescope.inShadow": "{moon} is in shadow",
+  "telescope.visible": "{moon} is visible",
   "clock.play": "Start",
   "clock.pause": "Stop",
   "clock.nextEclipse": "Skip to the next eclipse",
   "clock.rate": "Speed",
-
   "log.title": "Your observations",
   "log.empty": "Nothing recorded yet. Start the clock, wait for an eclipse, and press the space bar as Io disappears.",
   "log.columnDate": "Date",
@@ -34,7 +29,6 @@
   "log.clear": "Clear the log",
   "log.loadSample": "Load a ready-made log",
   "log.count": "Observations: {count}",
-
   "solve.title": "What did you get?",
   "solve.needMore": "You need at least three observations to work it out.",
   "solve.simpleTitle": "The simple way — two eclipses",
@@ -50,13 +44,11 @@
   "solve.roemer": "Rømer himself got 22 minutes for the width of Earth's orbit. The right answer is 16.6 minutes — he was out by nearly a third, and still right about what mattered: light travels at a finite speed.",
   "solve.plotX": "How far Jupiter was (AU)",
   "solve.plotY": "How late (minutes)",
-
   "walkthrough.title": "How Rømer worked it out",
   "walkthrough.next": "Next",
   "walkthrough.previous": "Back",
   "walkthrough.close": "Close",
   "walkthrough.step": "Step {current} of {total}",
-
   "walkthrough.1.title": "A clock in the sky",
   "walkthrough.1.body": "The moon Io goes round Jupiter once every 1.77 days, and every time it disappears into Jupiter's shadow. In the 1600s this was the most dependable clock anyone could see from anywhere on Earth. Astronomers tabulated it carefully — it was the best hope of working out longitude at sea.",
   "walkthrough.2.title": "Something is wrong",
@@ -69,9 +61,26 @@
   "walkthrough.5.body": "In September 1676 Rømer announced in public that the November eclipse would arrive about ten minutes later than the tables said. It did. That is what made this science rather than a curve drawn in after the fact.",
   "walkthrough.6.title": "The number, and fifty years of doubt",
   "walkthrough.6.body": "Rømer gave 22 minutes for the width of Earth's orbit. Two years later Huygens turned that into a speed of around 200,000 km/s. Cassini, who had the same data, did not accept the conclusion — and that was not unreasonable, because the effect sat at the edge of what the timings could carry. Bradley settled it in 1728, by a completely different route.",
-
   "notes.datesWarning": "The eclipses in this model happen at the right rate, but not on the exact dates they happened in history. The pattern you measure is real; the dates on screen are not.",
-
   "locale.switch": "Čeština",
-  "notes.toggle": "Notes"
+  "notes.toggle": "Notes",
+  "moon.io": "Io",
+  "moon.europa": "Europa",
+  "moon.ganymede": "Ganymede",
+  "moon.callisto": "Callisto",
+  "controls.time": "Time",
+  "controls.zoom": "Zoom",
+  "controls.moon": "Which moon",
+  "zoom.map": "Orbits",
+  "zoom.moons": "Moons",
+  "clock.jumpNearest": "Jump to where Jupiter is nearest",
+  "clock.jumpFurthest": "Jump to where Jupiter is furthest",
+  "map.lightTakes": "light takes {minutes} min",
+  "jovian.caption": "Light from Jupiter takes {minutes} minutes. In that time {moon} moves {degrees}° round its orbit — which is why the solid and faint markers do not sit on top of each other.",
+  "curve.title": "How the delay changes through the year",
+  "curve.intro": "The delay is not always the same. When Jupiter is nearest the light takes {low} minutes; when it is furthest, {high}. That difference is the width of Earth's orbit.",
+  "curve.caption": "From {from} to {to}. The upright line shows where you are now.",
+  "curve.nearest": "Jupiter nearest",
+  "curve.furthest": "Jupiter furthest",
+  "telescope.zoomHint": "The moons sit close together — zoom in to separate them."
 }

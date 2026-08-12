@@ -19,15 +19,29 @@ export const OPENING_JD = jdFromCalendar(1676, 1, 1);
 /**
  * Simulated days per real second.
  *
- * Geometric, because the useful range spans a factor of two hundred: slow enough
- * to watch Io slide into the shadow over its real three and a half minutes, fast
- * enough to cross the months between one end of Earth's orbit and the other.
+ * Geometric, because the useful range spans a factor of fifty thousand. The
+ * bottom rung is slow enough to watch Io slide into the shadow over its real
+ * three and a half minutes; the top crosses a year in under four seconds, which
+ * is what it takes to get from Jupiter at its nearest to Jupiter at its
+ * furthest and see the delay swing with it.
  */
-export const RATE_LADDER = [0.002, 0.02, 0.2, 1, 5, 20] as const;
+export const RATE_LADDER = [0.002, 0.02, 0.2, 1, 5, 20, 100] as const;
 
-export const DEFAULT_RATE_INDEX = 2;
+export const DEFAULT_RATE_INDEX = 3;
 
 export type Panel = 'log' | 'solve' | 'walkthrough' | null;
+
+/**
+ * Zoom is a multiplier on the drawing, not a change of projection.
+ *
+ * Two independent ones, because the two things worth magnifying are wildly
+ * different sizes: the plan view is about AU and the Jovian system about a
+ * hundredth of one. Sharing a control between them would make one of the two
+ * useless at every setting.
+ */
+export const MIN_ZOOM = 1;
+export const MAX_MAP_ZOOM = 12;
+export const MAX_MOON_ZOOM = 8;
 
 export interface State {
   locale: Locale;
@@ -41,6 +55,10 @@ export interface State {
   /** Which of the six steps, when the walkthrough is open. */
   walkthroughStep: number;
   rateIndex: number;
+  /** Magnification of the plan view. */
+  mapZoom: number;
+  /** Magnification of the Jovian inset and the telescope strip. */
+  moonZoom: number;
 }
 
 export class Store {
@@ -56,6 +74,8 @@ export class Store {
     panel: null,
     walkthroughStep: 1,
     rateIndex: DEFAULT_RATE_INDEX,
+    mapZoom: 1,
+    moonZoom: 2,
   };
 
   private readonly listeners = new Set<(state: State) => void>();

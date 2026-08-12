@@ -2,6 +2,14 @@
  * Brass on parchment, c. 1750 — the orrery's look, reproduced here as this
  * repo's own tokens. Core ships no stylesheet, so this is a copy of a visual
  * language rather than a dependency (CLAUDE.md §4.2).
+ *
+ * ONE RULE ABOVE ALL, and the app was broken by breaking it: everything
+ * positioned inside a field uses `left`/`top` with `translate: -50% -50%`, never
+ * a percentage inside `translate`. A percentage in `translate` resolves against
+ * the element's *own* box, so `--x: 45%` on a 14-pixel marker moves it seven
+ * pixels and the entire solar system collapses to the centre. A percentage in
+ * `left`/`top` resolves against the containing block, which is what these
+ * numbers mean.
  */
 
 @layer tokens, structure, components;
@@ -25,7 +33,7 @@
     --moon-callisto: #6e6154;
 
     --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
-    --gap: 1rem;
+    --gap: 0.85rem;
   }
 }
 
@@ -39,88 +47,133 @@
     background: var(--parchment);
     color: var(--ink);
     font-family: var(--serif);
-    font-size: 16px;
-    line-height: 1.5;
+    font-size: 15px;
+    line-height: 1.45;
   }
 
+  /*
+   * Left dock controls, middle instrument, right measurements — the split is by
+   * purpose, so a student hunting for a control never reads past a number.
+   */
   .app {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(20rem, 26rem);
-    grid-template-rows: 1fr auto;
+    grid-template-columns: minmax(15rem, 17rem) minmax(0, 1fr) minmax(20rem, 25rem);
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      'top    top    top'
+      'left   stage  right'
+      'notice notice notice';
     gap: var(--gap);
     padding: var(--gap);
     min-height: 100vh;
   }
 
-  .stage {
-    display: grid;
-    grid-template-rows: 1fr auto;
-    gap: var(--gap);
-    min-width: 0;
+  .topbar {
+    grid-area: top;
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    padding-bottom: 0.4rem;
+    border-bottom: 1px solid var(--engraved);
   }
 
-  .dock--panels {
+  /* The title takes the slack, so the two toggles sit hard against the right. */
+  .topbar__title {
+    flex: 1;
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+  }
+
+  .dock--left {
+    grid-area: left;
+  }
+  .dock--right {
+    grid-area: right;
+  }
+  .stage {
+    grid-area: stage;
+  }
+  .notice {
+    grid-area: notice;
+  }
+
+  .dock {
     display: flex;
     flex-direction: column;
     gap: var(--gap);
     overflow-y: auto;
-    max-height: 100vh;
+    max-height: calc(100vh - 6rem);
   }
 
-  .dock--controls {
-    grid-column: 1 / -1;
-    grid-row: 2;
+  .stage {
     display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
+    flex-direction: column;
+    gap: var(--gap);
+    min-width: 0;
+    overflow-y: auto;
+    max-height: calc(100vh - 6rem);
   }
 
-  @media (max-width: 60rem) {
+  @media (max-width: 75rem) {
     .app {
       grid-template-columns: 1fr;
+      grid-template-areas: 'top' 'stage' 'left' 'right' 'notice';
     }
-    .dock--panels {
+    .dock,
+    .stage {
       max-height: none;
     }
+  }
+
+  /* Explanations collapse behind the ⓘ toggle, as the orrery does it. */
+  :root[data-notes='off'] .note:not(.note--live) {
+    display: none;
   }
 }
 
 @layer components {
-  /* --- the plan view --- */
+  /* --- shared plotting field --------------------------------------------- */
+
+  .field-dot,
+  .body,
+  .moon,
+  .plot__dot,
+  .plot__fit,
+  .curve__dot {
+    position: absolute;
+    left: var(--x);
+    top: var(--y);
+    translate: -50% -50%;
+    border-radius: 50%;
+  }
+
+  /* --- the plan view ------------------------------------------------------ */
 
   .map {
     position: relative;
+  }
+
+  .map__field {
+    position: relative;
     aspect-ratio: 1;
-    width: min(100%, 34rem);
+    width: min(100%, 30rem);
     margin: 0 auto;
     border: 1px solid var(--engraved);
     border-radius: 50%;
-    background: radial-gradient(circle, var(--parchment) 60%, var(--parchment-deep));
+    background: radial-gradient(circle, var(--parchment) 62%, var(--parchment-deep));
+    overflow: hidden;
   }
 
   .orbit {
     position: absolute;
-    inset: 50%;
-    border: 1px solid var(--engraved);
-    border-radius: 50%;
-    translate: -50% -50%;
-  }
-
-  /* Radii as a percentage of the 5.8 AU map radius. */
-  .orbit--earth {
-    width: 17.24%;
-    aspect-ratio: 1;
-  }
-  .orbit--jupiter {
-    width: 89.66%;
-    aspect-ratio: 1;
-  }
-
-  .body {
-    position: absolute;
     left: 50%;
     top: 50%;
-    translate: calc(var(--x) - 50%) calc(var(--y) - 50%);
+    width: var(--diameter);
+    aspect-ratio: 1;
+    translate: -50% -50%;
+    border: 1px solid var(--engraved);
     border-radius: 50%;
   }
 
@@ -128,37 +181,50 @@
     width: 1.1rem;
     aspect-ratio: 1;
     background: var(--sun);
+    box-shadow: 0 0 0.6rem rgb(216 163 58 / 60%);
   }
   .body--earth {
-    width: 0.6rem;
+    width: 0.62rem;
     aspect-ratio: 1;
     background: var(--earth);
   }
   .body--jupiter {
-    width: 0.9rem;
+    width: 0.92rem;
     aspect-ratio: 1;
     background: var(--jupiter);
   }
 
   .sightline {
     position: absolute;
-    left: 50%;
-    top: 50%;
+    left: var(--x);
+    top: var(--y);
     height: 1px;
     width: var(--length);
     background: var(--brass);
-    opacity: 0.55;
+    opacity: 0.6;
     transform-origin: 0 50%;
-    translate: var(--x) var(--y);
     rotate: var(--angle);
   }
 
-  /* --- the Jovian inset --- */
+  .sightline__label {
+    position: absolute;
+    left: var(--x);
+    top: var(--y);
+    translate: -50% -160%;
+    padding: 0.05rem 0.35rem;
+    background: rgb(242 232 213 / 85%);
+    border: 1px solid var(--engraved);
+    font-size: 0.72rem;
+    white-space: nowrap;
+    color: var(--brass);
+  }
 
-  .jovian {
+  /* --- the Jovian inset --------------------------------------------------- */
+
+  .jovian__field {
     position: relative;
-    aspect-ratio: 2;
-    width: min(100%, 34rem);
+    aspect-ratio: 2.2;
+    width: min(100%, 30rem);
     margin: 0 auto;
     border: 1px solid var(--engraved);
     background: var(--parchment-deep);
@@ -169,59 +235,48 @@
     position: absolute;
     left: 50%;
     top: 50%;
-    width: 1.4rem;
+    width: 1.1rem;
     aspect-ratio: 1;
     translate: -50% -50%;
     border-radius: 50%;
     background: var(--jupiter);
+    z-index: 2;
   }
 
   .jovian__shadow {
     position: absolute;
     left: 50%;
     top: 50%;
-    width: 60%;
-    height: 1.4rem;
+    width: var(--length);
+    height: 1.1rem;
     translate: 0 -50%;
     transform-origin: 0 50%;
     rotate: var(--angle);
-    background: linear-gradient(90deg, rgb(43 33 24 / 45%), rgb(43 33 24 / 10%));
+    background: linear-gradient(90deg, rgb(43 33 24 / 50%), rgb(43 33 24 / 6%));
   }
 
   .jovian__orbit {
     position: absolute;
-    inset: 50%;
+    left: 50%;
+    top: 50%;
+    width: var(--diameter);
+    aspect-ratio: 1;
+    translate: -50% -50%;
     border: 1px solid var(--engraved);
     border-radius: 50%;
-    translate: -50% -50%;
-    opacity: 0.6;
+    opacity: 0.5;
   }
 
-  .jovian__orbit--io {
-    width: 19.7%;
-    aspect-ratio: 1;
-  }
-  .jovian__orbit--europa {
-    width: 31.3%;
-    aspect-ratio: 1;
-  }
-  .jovian__orbit--ganymede {
-    width: 50%;
-    aspect-ratio: 1;
-  }
-  .jovian__orbit--callisto {
-    width: 88%;
-    aspect-ratio: 1;
+  .jovian__caption {
+    margin: 0.4rem 0 0;
+    font-size: 0.85rem;
+    color: var(--ink-soft);
   }
 
   .moon {
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    width: 0.5rem;
+    width: 0.52rem;
     aspect-ratio: 1;
-    border-radius: 50%;
-    translate: calc(var(--x) - 50%) calc(var(--y) - 50%);
+    z-index: 3;
   }
 
   .moon--io {
@@ -237,28 +292,33 @@
     background: var(--moon-callisto);
   }
 
-  /* "Where it really is" — faint, and only when asked for. */
+  .moon--watched {
+    box-shadow: 0 0 0 2px var(--brass-bright);
+  }
+
+  /* "Where it really is" — faint, hollow, and never exaggerated. */
   .moon--actual {
-    opacity: 0.3;
-    outline: 1px solid var(--ink-soft);
     background: transparent;
+    border: 1px dashed var(--ink-soft);
+    opacity: 0.75;
+    z-index: 2;
   }
 
   .moon--eclipsed {
-    opacity: 0.18;
+    opacity: 0.15;
   }
 
   .moon__link {
     position: absolute;
-    left: 50%;
-    top: 50%;
+    left: var(--x);
+    top: var(--y);
     height: 1px;
     width: var(--length);
     background: var(--ink-soft);
-    opacity: 0.35;
+    opacity: 0.5;
     transform-origin: 0 50%;
-    translate: var(--x) var(--y);
     rotate: var(--angle);
+    z-index: 1;
   }
 
   :root[data-true-positions='false'] .moon--actual,
@@ -266,46 +326,61 @@
     display: none;
   }
 
-  /* --- the telescope --- */
+  /* --- the telescope ------------------------------------------------------ */
 
   .telescope__field {
     position: relative;
-    height: 4rem;
+    height: 5.5rem;
     margin: 0.5rem 0;
     border: 1px solid var(--engraved);
-    border-radius: 2rem;
-    background: #17130e;
+    border-radius: 0.4rem;
+    background: #14100b;
+    overflow: hidden;
   }
 
   .telescope__planet {
     position: absolute;
     left: 50%;
     top: 50%;
-    width: 1.1rem;
+    width: var(--diameter);
+    min-width: 0.5rem;
     aspect-ratio: 1;
     translate: -50% -50%;
     border-radius: 50%;
-    background: var(--jupiter);
+    background: linear-gradient(180deg, #d8ab6a, #9c6c39);
   }
 
   .telescope__moon {
     position: absolute;
-    left: 50%;
+    left: var(--x);
     top: 50%;
-    width: 0.35rem;
+    width: 0.38rem;
     aspect-ratio: 1;
+    translate: -50% -50%;
     border-radius: 50%;
-    background: #f6ecd6;
-    translate: calc(var(--x) - 50%) -50%;
-    transition: opacity 0.4s linear;
+    background: #f8efdb;
+    box-shadow: 0 0 0.35rem rgb(248 239 219 / 70%);
+    transition: opacity 0.5s linear;
   }
 
   .telescope__moon--watched {
-    box-shadow: 0 0 0 2px var(--brass-bright);
+    box-shadow: 0 0 0 2px var(--brass-bright), 0 0 0.4rem rgb(248 239 219 / 80%);
   }
 
-  .telescope__moon--eclipsed {
+  /* Both hide it, and an observer could not tell which from the eyepiece. */
+  .telescope__moon--eclipsed,
+  .telescope__moon--behind {
     opacity: 0;
+  }
+
+  .telescope__name {
+    position: absolute;
+    left: 50%;
+    top: 0.6rem;
+    translate: -50% 0;
+    font-size: 0.62rem;
+    color: #cbbb9c;
+    white-space: nowrap;
   }
 
   .telescope__status {
@@ -313,30 +388,31 @@
     color: var(--ink-soft);
   }
 
-  /* --- panels --- */
+  /* --- panels ------------------------------------------------------------- */
 
   .panel {
     border: 1px solid var(--engraved);
     background: rgb(255 255 255 / 35%);
-    padding: 0.75rem 1rem;
+    padding: 0.7rem 0.85rem;
   }
 
   .panel__title {
-    margin: 0 0 0.5rem;
-    font-size: 1.05rem;
+    margin: 0 0 0.45rem;
+    font-size: 1rem;
     letter-spacing: 0.02em;
   }
 
   .panel__actions {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.5rem;
-    margin-top: 0.75rem;
+    gap: 0.4rem;
+    margin-top: 0.6rem;
   }
 
   .button {
     font: inherit;
-    padding: 0.35rem 0.8rem;
+    font-size: 0.88rem;
+    padding: 0.3rem 0.7rem;
     border: 1px solid var(--brass);
     background: var(--brass-bright);
     color: #201709;
@@ -348,16 +424,109 @@
     color: var(--ink);
   }
 
+  .button--on {
+    background: var(--parchment-deep);
+  }
+
   .button:disabled {
     opacity: 0.4;
     cursor: default;
   }
 
+  .chip {
+    font: inherit;
+    font-size: 0.8rem;
+    padding: 0.15rem 0.5rem;
+    border: 1px solid var(--engraved);
+    background: transparent;
+    cursor: pointer;
+  }
+
+  .chip--active {
+    background: var(--brass-bright);
+    border-color: var(--brass);
+  }
+
+  /* --- the controls dock -------------------------------------------------- */
+
+  .controls__group + .controls__group {
+    margin-top: 0.8rem;
+    padding-top: 0.6rem;
+    border-top: 1px solid var(--engraved);
+  }
+
+  .controls__label {
+    margin: 0 0 0.35rem;
+    font-size: 0.72rem;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+
+  .controls__row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .controls__column {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    margin-top: 0.45rem;
+  }
+
+  .controls__column .button {
+    text-align: left;
+  }
+
+  .controls__readout {
+    font-size: 0.8rem;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink-soft);
+    min-width: 3.5rem;
+  }
+
+  .controls__sliderRow {
+    display: grid;
+    grid-template-columns: 4.5rem 1fr 2.2rem;
+    align-items: center;
+    gap: 0.4rem;
+    margin-bottom: 0.3rem;
+  }
+
+  .controls__sliderLabel {
+    font-size: 0.8rem;
+    color: var(--ink-soft);
+  }
+
+  .controls__slider {
+    width: 100%;
+    accent-color: var(--brass);
+  }
+
+  /* --- the readout -------------------------------------------------------- */
+
+  .readout__headline {
+    margin: 0;
+    font-size: 1.15rem;
+    color: var(--brass);
+  }
+
+  .readout__line {
+    margin: 0.15rem 0 0;
+  }
+
+  .readout__line--muted {
+    color: var(--ink-soft);
+  }
+
   .note {
-    margin: 0.4rem 0;
+    margin: 0.35rem 0;
     font-style: italic;
     color: var(--ink-soft);
-    font-size: 0.92rem;
+    font-size: 0.88rem;
   }
 
   /* A status line, not an explanation — it stays when notes are hidden. */
@@ -365,40 +534,99 @@
     font-style: normal;
   }
 
-  .readout__headline {
+  .notice {
     margin: 0;
-    font-size: 1.25rem;
+    padding: 0.45rem 0.7rem;
+    border-left: 3px solid var(--brass);
+    background: rgb(201 151 63 / 12%);
+    font-size: 0.85rem;
   }
 
-  .readout__line {
-    margin: 0.2rem 0 0;
+  /* --- the delay curve ---------------------------------------------------- */
+
+  .curve__plot {
+    position: relative;
+    padding-left: 3rem;
   }
 
-  .readout__line--muted {
+  .curve__field {
+    position: relative;
+    height: 7rem;
+    border-left: 1px solid var(--ink-soft);
+    border-bottom: 1px solid var(--ink-soft);
+    background: rgb(255 255 255 / 30%);
+  }
+
+  .curve__dot {
+    width: 2px;
+    height: 2px;
+    background: var(--brass);
+  }
+
+  .curve__tick {
+    position: absolute;
+    left: 0;
+    font-size: 0.7rem;
+    color: var(--ink-soft);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .curve__tick--high {
+    top: 0;
+  }
+  .curve__tick--low {
+    bottom: 0.6rem;
+  }
+
+  .curve__mark {
+    position: absolute;
+    left: var(--x);
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    translate: -50% 0;
+  }
+
+  .curve__mark--nearest {
+    background: repeating-linear-gradient(180deg, var(--earth) 0 3px, transparent 3px 6px);
+  }
+
+  .curve__mark--furthest {
+    background: repeating-linear-gradient(180deg, var(--jupiter) 0 3px, transparent 3px 6px);
+  }
+
+  .curve__playhead {
+    position: absolute;
+    left: var(--x);
+    top: -2px;
+    bottom: -2px;
+    width: 2px;
+    translate: -50% 0;
+    background: var(--ink);
+  }
+
+  .curve__playhead--offscale {
+    opacity: 0.25;
+  }
+
+  .curve__caption {
+    margin: 0.35rem 0 0;
+    font-size: 0.78rem;
     color: var(--ink-soft);
   }
 
-  .notice {
-    grid-column: 1 / -1;
-    margin: 0;
-    padding: 0.5rem 0.75rem;
-    border-left: 3px solid var(--brass);
-    background: rgb(201 151 63 / 12%);
-    font-size: 0.9rem;
-  }
-
-  /* --- the log --- */
+  /* --- the log ------------------------------------------------------------ */
 
   .log__table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.86rem;
+    font-size: 0.8rem;
   }
 
   .log__table th,
   .log__table td {
     border-bottom: 1px solid var(--engraved);
-    padding: 0.25rem 0.4rem;
+    padding: 0.2rem 0.3rem;
     text-align: left;
   }
 
@@ -408,76 +636,84 @@
   }
 
   .log__body {
-    max-height: 18rem;
+    max-height: 16rem;
     overflow-y: auto;
   }
 
-  /* --- the answer --- */
+  .log__count {
+    margin: 0 0 0.3rem;
+    font-size: 0.85rem;
+    color: var(--ink-soft);
+  }
+
+  /* --- the answer --------------------------------------------------------- */
 
   .solve__route + .solve__route {
-    margin-top: 1.25rem;
-    padding-top: 1rem;
+    margin-top: 1.1rem;
+    padding-top: 0.9rem;
     border-top: 1px solid var(--engraved);
   }
 
   .solve__routeTitle {
-    margin: 0 0 0.3rem;
-    font-size: 0.98rem;
+    margin: 0 0 0.25rem;
+    font-size: 0.95rem;
   }
 
   .solve__step {
-    margin: 0.2rem 0;
+    margin: 0.15rem 0;
     font-variant-numeric: tabular-nums;
   }
 
   .solve__answer {
-    margin: 0.5rem 0;
-    font-size: 1.1rem;
+    margin: 0.45rem 0;
+    font-size: 1.05rem;
     color: var(--brass);
   }
 
   .plot {
-    margin: 0.75rem 0;
+    margin: 0.6rem 0;
   }
 
   .plot__field {
     position: relative;
-    height: 10rem;
+    height: 9rem;
     border-left: 1px solid var(--ink-soft);
     border-bottom: 1px solid var(--ink-soft);
   }
 
   .plot__dot {
-    position: absolute;
     width: 0.3rem;
-    aspect-ratio: 1;
-    border-radius: 50%;
+    height: 0.3rem;
     background: var(--earth);
-    translate: calc(var(--x) - 50%) calc(var(--y) - 50%);
   }
 
-  .plot__line {
-    position: absolute;
-    height: 1px;
-    width: var(--length);
+  .plot__fit {
+    width: 2px;
+    height: 2px;
     background: var(--brass);
-    transform-origin: 0 50%;
-    translate: var(--x) var(--y);
-    rotate: var(--angle);
   }
 
   .plot__axis {
     display: block;
-    font-size: 0.82rem;
+    font-size: 0.78rem;
     color: var(--ink-soft);
     text-align: center;
   }
 
+  .plot__axis--y {
+    text-align: left;
+  }
+
   .walkthrough__counter {
     margin: 0;
-    font-size: 0.82rem;
+    font-size: 0.72rem;
     color: var(--ink-soft);
-    letter-spacing: 0.06em;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
+  }
+
+  .walkthrough__body {
+    margin: 0.3rem 0 0;
+    font-size: 0.92rem;
   }
 }

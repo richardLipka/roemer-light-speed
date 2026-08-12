@@ -99,7 +99,9 @@ detail to be reconsidered while implementing something else.
 | True vs. observed | **One map, ghost overlay.** Solid = what Earth sees; faint ghost + link line = where the body actually is at this instant |
 | Interactivity | **Two treatments**: a free observation log in which the student times eclipses and works out *c* from their own numbers, and a guided walkthrough of Rømer's 1676 reasoning |
 | Getting to *c* | **Two routes, simple one first** — Rømer's own arithmetic, then the careful fit (§7.3) |
-| Not included | No standing residual-versus-distance panel and no adjustable-*c* slider. Considered and left out; do not add either without asking |
+| Layout | **Controls left, instrument centre, measurements right**, language and notes in a bar at the top right. Split by purpose, so nobody hunting a control reads past a number |
+| Delay curve | **A standing plot of light time against date**, marked with the nearest and furthest approaches — the setup, not the answer. See §9 |
+| Not included | No standing **residual**-versus-distance panel and no adjustable-*c* slider. Considered and left out; do not add either without asking |
 | Aberration | **Deliberately absent.** Light-time only — see §5.3 |
 | Stack | **TypeScript + Vite, vanilla DOM, CSS-only drawing.** No UI framework, no canvas |
 | Deployment | **Static files, GitHub Pages from Actions**, relative base path, works offline once loaded |
@@ -468,15 +470,80 @@ right.
 
 ## 9. The view
 
-One composite drawing, in the orrery's manner: a plan view with the frame origin
-at the centre, orbits as engraved rings, and the Jovian system enlarged enough to
-be legible.
+### 9.0 Three columns, split by purpose
 
-**The ghost overlay is the app's central device.** Solid markers are what Earth
-sees at the current instant. Faint ghosts are where the bodies actually are, with
-a thin link line between the pair. Label them in the interface as **"where we see
-it"** and **"where it really is"**; the word *ghost* is internal vocabulary and
-should not appear on screen.
+**Controls on the left, the instrument in the middle, measurements on the
+right**, with language and the notes toggle in a bar across the top right. The
+split is by what a thing is *for*, not by what kind of component it is: a
+student hunting for a control never scrolls past a result, and a student reading
+a result never scrolls past a control.
+
+The left dock carries time, magnification, which moon, and three jumps. The
+right carries the readout, the delay curve, the log and the answer.
+
+### 9.0a Position with `left`/`top`, never with a percentage in `translate`
+
+This cost an entire first version of the interface, so it is written down. A
+percentage inside `translate` resolves against **the element's own box**; a
+percentage in `left`/`top` resolves against **the containing block**. Writing
+`--x: 45%` into `translate` on a 14-pixel marker moves it seven pixels, so the
+whole solar system piles up within ten pixels of the Sun, every moon sits exactly
+on top of its own ghost, and the telescope shows nothing at all. Everything
+positioned in a field uses `left: var(--x); top: var(--y)` with
+`translate: -50% -50%`.
+
+The same arithmetic bites sloped lines. A rotated element's `width: var(--length)`
+resolves against the parent's *width* while its `top` resolved against the
+parent's *height*, so a sloped line's length cannot be one percentage unless the
+box is square. Plots are therefore drawn as **dense dots**, not as rotated
+segments.
+
+### 9.1 The drawings
+
+One composite instrument: a plan view with the Sun at the centre, orbits as
+engraved rings, the Jovian system enlarged beneath it, and the telescope strip
+below that.
+
+**Two independent zooms**, because the two things worth magnifying differ by a
+factor of four hundred: the plan view works in AU, the Jovian system in
+hundredths of one. A shared control would be useless at every setting.
+
+**The telescope's one axis is measured square to the Earth–Jupiter line**, not
+along the ecliptic x axis. Those coincide only when Earth happens to lie due
+y-ward of Jupiter, and using x regardless made the moons' spread wander with the
+season for no physical reason. `scene.ts` computes the line of sight once and
+every drawing takes its geometry from there, so the plan view and the eyepiece
+are guaranteed to be showing the same configuration — the second seen end-on.
+A moon further from Earth than Jupiter and within its disc is hidden exactly as
+an eclipsed one is, because an observer at the eyepiece cannot tell them apart.
+
+### 9.2 The delay curve
+
+Light time plotted against date over three years, with the nearest and furthest
+approaches marked and a playhead showing where the clock stands. Measured: 33
+minutes at the nearest approach, 52 at the furthest.
+
+§3 rules out a standing plot of the app's own numbers, and this is the exception
+that defines the rule. The banned one is the **residual** plot, which hands over
+the result before the student has asked the question. This one hands over the
+*setup* — where in the cycle to look, and why the effect is far larger at some
+times of year than others. A student cannot discover that by scrubbing a
+timeline, and asking them to is not teaching. The two jump buttons exist for the
+same reason.
+
+### 9.3 The ghost overlay
+
+**The app's central device.** Solid markers are what Earth sees at the current
+instant. Faint hollow ones are where the bodies actually are, with a thin link
+line between the pair. Label them in the interface as **"where we see it"** and
+**"where it really is"**; the word *ghost* is internal vocabulary and should not
+appear on screen.
+
+Measured on screen: Io's two markers sit 11 pixels apart at the default
+magnification, and the caption says why — *light from Jupiter takes 50.4
+minutes, and in that time Io moves 7.1° round its orbit*. Jumping to the nearest
+approach drops that to 4.7°, which is the effect the whole app is about, visible
+and quantified in one line.
 
 **It belongs on the moons, not on Jupiter**, and the arithmetic is why. Jupiter
 travels 0.0047 AU a day, so across even the longest light time — 52 minutes — it
@@ -551,6 +618,7 @@ src/
     lightTime.ts      # retardation, iterative; the one new piece of physics
     shadow.ts         # the umbral cone; the continuous in/out function
     eclipses.ts       # bracket + bisect; jdTrue and jdSeen for each event
+    configuration.ts  # nearest/furthest approach; the delay curve
     solve.ts          # route 1 (two eclipses) and route 2 (all of them) -> c
   state/
     store.ts          # clock, selection, overlay toggles, walkthrough step
@@ -561,6 +629,8 @@ src/
     jovian.ts         # the inset — and the only place the ghosts are legible
     telescope.ts      # eyepiece strip; the timing surface
     readout.ts        # light time and distance
+    delayCurve.ts     # light time against date; the setup, not the answer
+    controls.ts       # the left dock: time, zoom, moon, jumps
     format.ts         # locale-aware numbers, dates and units — see §10
     dom.ts            # three helpers, in place of a framework
   log/
@@ -625,6 +695,13 @@ one corresponds to a sentence above that would otherwise be unverified.
   zero distance would be seen instantly, so the intercept is fitted rather than
   forced, and its coming out near zero is a result rather than an assumption.
 - The quoted uncertainty covers the true value, and shrinks on cleaner readings.
+- The nearest approach is a real turning point rather than a low sample, lands
+  near 4.2 AU, and the furthest near 6.2; the two alternate, and every nearest is
+  closer than every furthest.
+- The delay curve swings 16.6–20 minutes over three years and never leaves the
+  32–54 minute band. The floor is set by Jupiter's own eccentricity: an
+  opposition near its perihelion brings it inside 4 AU, which is 33.0 minutes of
+  light — the first version of that assertion guessed 33 and was wrong.
 - Newton's engine and the reference ephemeris give values of *c* that agree to
   within the measurement's own scatter. If they do not, the engine choice in §1
   needs revisiting rather than defending.

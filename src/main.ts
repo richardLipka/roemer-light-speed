@@ -1,30 +1,39 @@
 /**
  * The shell: build the views once, then write to them on every frame.
  *
- * Nothing here decides anything. The clock advances, `buildScene` works out
- * where everything is and what light has reached us, and each view writes CSS
- * custom properties. The panels rebuild only when something they show changes.
+ * Three columns, and the split is by *purpose* rather than by component. The
+ * left dock is everything that changes what the instrument is doing; the middle
+ * is the instrument; the right is everything the instrument reports. A student
+ * hunting for a control never reads past a measurement, and vice versa. The
+ * language and notes toggles sit in a bar at the top right, out of both.
+ *
+ * Nothing here decides anything about the physics. The clock advances,
+ * `buildScene` works out where everything is and what light has reached us, and
+ * each view writes CSS custom properties.
  */
 
 import './style.css';
 
+import { BODIES } from '@orrery/core';
+
 import { translate } from './i18n/i18n.js';
-import { DEFAULT_MOON } from './physics/constants.js';
-import { eclipsePeriodDays, nextEclipse } from './physics/eclipses.js';
+import { nextExtremum } from './physics/configuration.js';
+import { DEFAULT_MOON, GALILEAN_IDS } from './physics/constants.js';
+import { nextEclipse } from './physics/eclipses.js';
 import type { Observation } from './physics/solve.js';
 import { ObservationLog } from './state/log.js';
 import { RATE_LADDER, Store } from './state/store.js';
 import { createLogPanel } from './log/logPanel.js';
 import { createSolveView } from './log/solveView.js';
 import { createWalkthrough } from './walkthrough/walkthrough.js';
+import { createControls } from './view/controls.js';
+import { createDelayCurve } from './view/delayCurve.js';
 import { button, el } from './view/dom.js';
 import { createJovian } from './view/jovian.js';
 import { createMap } from './view/map.js';
 import { createReadout } from './view/readout.js';
 import { buildScene, scenePositions } from './view/scene.js';
 import { createTelescope } from './view/telescope.js';
-import { BODIES } from '@orrery/core';
-import { GALILEAN_IDS } from './physics/constants.js';
 
 const store = new Store();
 const log = new ObservationLog();
@@ -34,25 +43,56 @@ const MOON_PERIODS = Object.fromEntries(
   GALILEAN_IDS.map((id) => [id, BODIES[id].satellite!.periodDays]),
 ) as Record<(typeof GALILEAN_IDS)[number], number>;
 
-const map = createMap();
-const jovian = createJovian();
+// --- actions the controls invoke ------------------------------------------
+
+const actions = {
+  toggleClock(): void {
+    if (store.clock.isRunning) store.clock.pause();
+    else store.clock.play();
+  },
+  nextEclipse(): void {
+    const eclipse = nextEclipse(scenePositions, store.current.moon, store.clock.julianDate);
+    // Stop a little before it, so the fade can actually be watched.
+    store.clock.setJd(eclipse.jdSeen - 4 / 1440);
+    store.ticked();
+  },
+  jumpNearest(): void {
+    store.clock.setJd(nextExtremum(scenePositions, store.clock.julianDate, 'nearest'));
+    store.ticked();
+  },
+  jumpFurthest(): void {
+    store.clock.setJd(nextExtremum(scenePositions, store.clock.julianDate, 'furthest'));
+    store.ticked();
+  },
+};
+
+// --- views ----------------------------------------------------------------
+
+const map = createMap(store);
+const jovian = createJovian(store);
 const readout = createReadout(store);
 const telescope = createTelescope(store);
 const walkthrough = createWalkthrough(store);
 const logPanel = createLogPanel(store, log, loadSampleLog);
 const solveView = createSolveView(store, log);
+const controls = createControls(store, actions);
+const delayCurveView = createDelayCurve(store);
+
+const topBar = el('div', 'topbar');
 
 const stage = el('div', 'stage');
-stage.append(map.root, jovian.root);
+stage.append(map.root, jovian.root, telescope.root);
 
-const controls = el('div', 'dock dock--controls');
-const docks = el('div', 'dock dock--panels');
-docks.append(readout.root, telescope.root, walkthrough.root, logPanel.root, solveView.root);
+const left = el('div', 'dock dock--left');
+left.append(controls.root, walkthrough.root);
+
+const right = el('div', 'dock dock--right');
+right.append(readout.root, delayCurveView.root, logPanel.root, solveView.root);
 
 const notice = el('p', 'notice');
 
 const app = el('div', 'app');
-app.append(stage, controls, docks, notice);
+app.append(topBar, left, stage, right, notice);
 document.body.append(app);
 
 // --- recording ------------------------------------------------------------
@@ -63,22 +103,18 @@ document.body.append(app);
  */
 function record(): void {
   const scene = buildScene(store.clock.julianDate, MOON_PERIODS);
-  const watched = scene.moons.find((moon) => moon.id === store.current.moon);
-  if (!watched) return;
-
   const eclipse = nextEclipse(
     scenePositions,
     store.current.moon,
-    store.clock.julianDate - eclipsePeriodDays(store.current.moon),
+    store.clock.julianDate - 2 * BODIES[store.current.moon].satellite!.periodDays,
   );
 
-  const observation: Observation = {
+  log.add({
     jdRecorded: store.clock.julianDate,
     jdPredicted: eclipse.jdTrue,
     phase: eclipse.phase,
     distanceAu: scene.earthJupiterAu,
-  };
-  log.add(observation);
+  });
 }
 
 /**
@@ -103,9 +139,7 @@ function seededRandom(seed: number): () => number {
  * A ready-made log, so the analysis can be reached inside a 45-minute lesson.
  *
  * The scatter is deliberate: a clean log would fit suspiciously well and teach
- * the wrong thing about measurement (CLAUDE.md §7.4). Roughly three quarters of
- * a minute either way, which is about what judging a three-and-a-half-minute
- * fade is worth.
+ * the wrong thing about measurement (CLAUDE.md §7.4).
  */
 function loadSampleLog(): void {
   const random = seededRandom(1676);
@@ -127,23 +161,14 @@ function loadSampleLog(): void {
   log.replaceAll(observations);
 }
 
-// --- controls -------------------------------------------------------------
+// --- the top bar ----------------------------------------------------------
 
-function buildControls(): void {
-  const { locale } = store.current;
-  controls.replaceChildren(
-    button('button', translate(locale, store.clock.isRunning ? 'clock.pause' : 'clock.play'), () => {
-      if (store.clock.isRunning) store.clock.pause();
-      else store.clock.play();
-      buildControls();
-    }),
-    button('button', translate(locale, 'clock.nextEclipse'), () => {
-      const eclipse = nextEclipse(scenePositions, store.current.moon, store.clock.julianDate);
-      // Stop a little before it, so the fade can actually be watched.
-      store.clock.setJd(eclipse.jdSeen - 4 / 1440);
-    }),
-    button('button button--quiet', translate(locale, 'walkthrough.title'), () =>
-      store.patch({ panel: 'walkthrough' }),
+function buildTopBar(): void {
+  const { locale, showNotes } = store.current;
+  topBar.replaceChildren(
+    el('h1', 'topbar__title', translate(locale, 'app.title')),
+    button(`button button--quiet${showNotes ? ' button--on' : ''}`, translate(locale, 'notes.toggle'), () =>
+      store.patch({ showNotes: !showNotes }),
     ),
     button('button button--quiet', translate(locale, 'locale.switch'), () => store.toggleLocale()),
   );
@@ -151,15 +176,17 @@ function buildControls(): void {
 
 document.addEventListener('keydown', (event) => {
   const target = event.target as HTMLElement | null;
-  if (target && (target.tagName === 'INPUT' || target.tagName === 'SELECT')) return;
+  if (target && ['INPUT', 'SELECT', 'TEXTAREA'].includes(target.tagName)) return;
 
   if (event.code === 'Space') {
     event.preventDefault();
     record();
   } else if (event.code === 'ArrowRight') {
     store.clock.step(1 / 1440);
+    store.ticked();
   } else if (event.code === 'ArrowLeft') {
     store.clock.step(-1 / 1440);
+    store.ticked();
   }
 });
 
@@ -174,8 +201,7 @@ let previous = performance.now();
  * projector that has throttled rendering, or a browser honouring reduced motion
  * can leave `requestAnimationFrame` unfired for as long as it likes — and the
  * first version of this file drew nowhere else, so the readout and the
- * telescope came up blank until something moved. Every state change repaints
- * too, and so does startup.
+ * telescope came up blank until something moved.
  */
 function renderScene(): void {
   const scene = buildScene(store.clock.julianDate, MOON_PERIODS);
@@ -183,6 +209,7 @@ function renderScene(): void {
   jovian.render(scene);
   readout.render(scene);
   telescope.render(scene);
+  delayCurveView.render(scene.jd);
 }
 
 function frame(now: number): void {
@@ -193,12 +220,14 @@ function frame(now: number): void {
 }
 
 function renderPanels(): void {
-  const { locale, showTruePositions } = store.current;
+  const { locale, showTruePositions, showNotes } = store.current;
   document.documentElement.lang = locale;
   document.documentElement.dataset['truePositions'] = String(showTruePositions);
+  document.documentElement.dataset['notes'] = showNotes ? 'on' : 'off';
   document.title = translate(locale, 'app.title');
   notice.textContent = translate(locale, 'notes.datesWarning');
-  buildControls();
+  buildTopBar();
+  controls.render();
   walkthrough.render();
   logPanel.render();
   solveView.render();

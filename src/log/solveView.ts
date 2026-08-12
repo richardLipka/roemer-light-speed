@@ -145,19 +145,19 @@ function plot(store: Store, solution: FullSolution): HTMLElement {
     field.append(dot);
   }
 
-  // One hairline through the fit, drawn between its values at the two ends.
+  // The fitted line, as a run of dots. A rotated element cannot carry a sloped
+  // length as a single percentage — width resolves against the parent's width
+  // and top against its height — so anything but a horizontal line comes out the
+  // wrong length. Dots sidestep the whole question.
   const lineAt = (d: number) =>
     (solution.line.interceptSeconds + solution.line.slopeSecondsPerAu * d) / 60;
-  const x1 = toX(xMin);
-  const y1 = toY(lineAt(xMin));
-  const x2 = toX(xMax);
-  const y2 = toY(lineAt(xMax));
-  const line = el('div', 'plot__line');
-  line.style.setProperty('--x', `${x1}%`);
-  line.style.setProperty('--y', `${y1}%`);
-  line.style.setProperty('--angle', `${Math.atan2(y2 - y1, x2 - x1)}rad`);
-  line.style.setProperty('--length', `${Math.hypot(x2 - x1, y2 - y1)}%`);
-  field.append(line);
+  for (let i = 0; i <= 80; i++) {
+    const d = xMin + ((xMax - xMin) * i) / 80;
+    const node = el('div', 'plot__fit');
+    node.style.setProperty('--x', `${toX(d)}%`);
+    node.style.setProperty('--y', `${toY(lineAt(d))}%`);
+    field.append(node);
+  }
 
   const root = el('figure', 'plot');
   root.append(
