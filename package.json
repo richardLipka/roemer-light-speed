@@ -1,7 +1,7 @@
 {
   "name": "roemer-light-speed",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "description": "Ole Rømer's 1676 measurement of the speed of light, reconstructed from the eclipses of Io: light-time delay shown against the true configuration, and a log in which a student times eclipses and works the speed out for themselves. Czech and English.",
   "license": "MIT",

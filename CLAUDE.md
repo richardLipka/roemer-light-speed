@@ -74,6 +74,35 @@ paste a good sentence from here into the UI.
   who learns that good scientists disagreed about a real result has learned
   something the physics alone does not teach.
 
+### 2.1a Claims the audit corrected
+
+Every factual claim in the interface was checked against the model rather than
+against memory, and four were wrong. They are listed because the *kind* of error
+matters more than the individual fixes.
+
+- **"Each moon disappears into the shadow once every orbit."** False for half of
+  them. A moon is eclipsed every revolution only while its excursion out of
+  Jupiter's orbital plane stays inside the umbra, and that fails further out:
+  measured over a year, Io and Europa are eclipsed on every revolution, Ganymede
+  on 48 of 51, and **Callisto on only 8 of 21** — 72 601 km out of plane against
+  a 69 981 km umbra at its distance. Real Callisto has eclipse seasons for the
+  same reason, so the model was right and the sentence was wrong.
+  `eclipseSeasons.test.ts` now holds the whole table.
+- **"The best hope of working out longitude at sea."** The Galilean moons never
+  worked at sea — a telescope will not hold steady on a rolling deck. They did
+  solve longitude *on land*, and redrew the map of Europe. The corrected line
+  says both, and the failure at sea is the better story anyway.
+- **"That difference is the width of Earth's orbit."** Said of the delay curve's
+  full swing, which is about 19 minutes over three years against the 16.63 that
+  Earth's orbit alone accounts for. Jupiter moves too. Now stated as *most of
+  the difference*, with the 16.6 minutes named and the remainder attributed.
+- **"Io is going into Jupiter's shadow"** and the empty-log hint, both of which
+  named Io while the student might be watching any of the four. Parameterised.
+
+The lesson for anything added later: a sentence about the model is a claim about
+the model, and the model can be asked. Two of these four were caught only by
+computing the answer.
+
 ### 2.2 What to leave out
 
 Things that are true, that belong in this file, and that must not reach the
@@ -758,7 +787,14 @@ one corresponds to a sentence above that would otherwise be unverified.
   same placeholders in both. A missing Czech key that silently falls back to
   English is exactly the failure this project cannot ship.
 - Numbers format with a comma in Czech and a point in English from the same raw
-  value, and Czech months are named rather than swapped in from English.
+  value, and Czech months are named rather than swapped in from English. Two
+  places bypassed the formatter with `toFixed` and printed `53.4 min` into a
+  Czech interface — the confirmation after every recorded observation, and the
+  zoom readouts. §10 exists precisely because this keeps happening.
+- **Io and Europa are eclipsed on every revolution; Ganymede and Callisto are
+  not.** Callisto manages 8 eclipses in 21 orbits, its widest gap running to
+  five orbits — which is why the "next eclipse" search allows twenty rather than
+  the ten it began with, and why the interface no longer claims otherwise.
 - The log survives anything at all in `localStorage` — junk, an older version, a
   row that would reach the solver as a NaN — and works with no storage present.
 
@@ -812,3 +848,22 @@ Listed so they are not silently resolved by whoever touches the code first.
 - **Whether a teacher needs anything the student does not** — a way to reset a
   class's logs, or a link that opens the walkthrough at a given step. Wait until
   someone has taught with it.
+
+---
+
+## 15. Credit line
+
+An imprint, not a banner: `© <year> Richard Lipka · lipka@fav.zcu.cz ·
+home.zcu.cz/~lipka`, with the FAV and KIV marks beside it, small, at the foot of
+the page.
+
+The two marks are **inlined SVG with every fill set to `currentColor`**, copied
+from the orrery's own assets rather than fetched from the web. Two reasons, both
+binding. The artwork the university publishes is flat white, meant for the dark
+header it sits in there, and would be invisible on parchment; inlined, it takes
+the footer's own ink. And §13 requires the app to work offline once loaded, so a
+logo hotlinked from `kiv.zcu.cz` is not an option regardless of how it looks.
+
+Full opacity is deliberate. The muted ink already reads as an imprint, and
+dimming a mark that carries meaning on top of that drops it under the 3:1 a
+graphic needs.

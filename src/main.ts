@@ -27,12 +27,14 @@ import { createLogPanel } from './log/logPanel.js';
 import { createSolveView } from './log/solveView.js';
 import { createWalkthrough } from './walkthrough/walkthrough.js';
 import { createControls } from './view/controls.js';
+import { createCredit } from './view/credit.js';
 import { createComparison } from './view/comparison.js';
 import { createDelayCurve } from './view/delayCurve.js';
 import { button, el } from './view/dom.js';
 import { createJovian } from './view/jovian.js';
 import { createMap } from './view/map.js';
 import { createReadout } from './view/readout.js';
+import { number } from './view/format.js';
 import { buildScene, scenePositions } from './view/scene.js';
 import { createTelescope } from './view/telescope.js';
 
@@ -79,6 +81,7 @@ const solveView = createSolveView(store, log);
 const controls = createControls(store, actions);
 const delayCurveView = createDelayCurve(store);
 const comparison = createComparison(store, log);
+const credit = createCredit(store);
 
 const topBar = el('div', 'topbar');
 
@@ -94,7 +97,7 @@ right.append(readout.root, delayCurveView.root, logPanel.root, solveView.root, c
 const notice = el('p', 'notice');
 
 const app = el('div', 'app');
-app.append(topBar, left, stage, right, notice);
+app.append(topBar, left, stage, right, notice, credit.root);
 document.body.append(app);
 
 // --- recording ------------------------------------------------------------
@@ -127,7 +130,9 @@ function record(): void {
 
   logPanel.report(
     translate(locale, 'log.recorded', {
-      minutes: ((pressed - eclipse.jdTrue) * 1440).toFixed(1),
+      // Through the formatter, not toFixed: Czech writes 53,4 where English
+      // writes 53.4, and this is the one number a student reads after each press.
+      minutes: number(locale, (pressed - eclipse.jdTrue) * 1440, 1),
     }),
   );
 }
@@ -243,6 +248,7 @@ function renderPanels(): void {
   document.title = translate(locale, 'app.title');
   notice.textContent = translate(locale, 'notes.datesWarning');
   buildTopBar();
+  credit.render();
   controls.render();
   walkthrough.render();
   logPanel.render();

@@ -153,9 +153,18 @@ export function findEclipses(
  * needs, without computing a year of them.
  *
  * Searches an orbit at a time so that a moon with a 16-day period does not pay
- * Io's sampling density, and gives up after a span that cannot plausibly contain
- * no eclipse. Every revolution produces one (`shadow.test.ts` holds that), so
- * running out means something upstream is wrong and silence would hide it.
+ * Io's sampling density.
+ *
+ * **Not every revolution produces an eclipse**, and the outer moons are the
+ * reason the search window is as wide as it is. A moon is eclipsed every orbit
+ * only while its excursion out of Jupiter's orbital plane stays inside the
+ * umbra, and that fails further out: measured over a year, Io and Europa are
+ * eclipsed on every revolution, Ganymede on 48 of 51, and **Callisto on only 8
+ * of 21** — its 72 601 km out-of-plane swing exceeds the 69 981 km umbra at its
+ * distance, so it slips above or below the shadow for long stretches. That is
+ * not a defect in the model; real Callisto has eclipse seasons for the same
+ * reason. Callisto's widest measured gap is five orbits, so twenty is a genuine
+ * margin rather than the "cannot happen" the first version assumed.
  */
 export function nextEclipse(
   positionsAt: PositionsAt,
@@ -166,13 +175,13 @@ export function nextEclipse(
   const orbit = BODIES[moon].satellite;
   if (!orbit) throw new Error(`'${moon}' is not a satellite`);
 
-  for (let start = jdFrom; start < jdFrom + 10 * orbit.periodDays; start += orbit.periodDays) {
+  for (let start = jdFrom; start < jdFrom + 20 * orbit.periodDays; start += orbit.periodDays) {
     for (const eclipse of findEclipses(positionsAt, moon, start, start + orbit.periodDays)) {
       if (eclipse.jdTrue >= jdFrom && (!phase || eclipse.phase === phase)) return eclipse;
     }
   }
 
-  throw new Error(`no eclipse of '${moon}' within ten orbits of JD ${jdFrom}`);
+  throw new Error(`no eclipse of '${moon}' within twenty orbits of JD ${jdFrom}`);
 }
 
 /**

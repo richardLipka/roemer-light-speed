@@ -58,11 +58,12 @@
   .app {
     display: grid;
     grid-template-columns: minmax(15rem, 17rem) minmax(0, 1fr) minmax(20rem, 25rem);
-    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-rows: auto minmax(0, 1fr) auto auto;
     grid-template-areas:
       'top    top    top'
       'left   stage  right'
-      'notice notice notice';
+      'notice notice notice'
+      'credit credit credit';
     gap: var(--gap);
     padding: var(--gap);
     min-height: 100vh;
@@ -787,5 +788,86 @@
     margin: 0.6rem 0 0;
     border: 0;
     border-top: 1px solid var(--brass);
+  }
+}
+
+@layer structure {
+  .credit {
+    grid-area: credit;
+  }
+
+  @media (max-width: 75rem) {
+    .app {
+      grid-template-areas: 'top' 'stage' 'left' 'right' 'notice' 'credit';
+    }
+  }
+}
+
+@layer components {
+  /*
+   * --- the imprint --------------------------------------------------------
+   * A line of small print, not a control: unboxed and quiet, so it closes the
+   * page without reading as another panel.
+   */
+  .credit {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem 1rem;
+    padding: 0.5rem 0.2rem 0;
+    border-top: 1px solid var(--engraved);
+    font-size: 0.72rem;
+    color: var(--ink-soft);
+  }
+
+  .credit__line {
+    margin: 0;
+  }
+
+  .credit a {
+    color: inherit;
+    text-decoration: underline;
+    text-decoration-color: var(--brass);
+    text-underline-offset: 0.15em;
+  }
+
+  .credit a:hover {
+    color: var(--brass);
+    text-decoration-color: currentColor;
+  }
+
+  .credit__marks {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+  }
+
+  /*
+   * Full opacity deliberately. The muted ink already reads as an imprint, and
+   * dimming a mark that carries meaning on top of that drops it under the 3:1
+   * a graphic needs.
+   */
+  .credit__mark {
+    display: block;
+    text-decoration: none;
+    transition: color 120ms ease;
+  }
+
+  .credit__mark:hover {
+    color: var(--brass);
+  }
+
+  /* The marks' own width/height attributes are overridden; the viewBox keeps
+     each one's proportions. */
+  .credit__mark svg {
+    display: block;
+    width: auto;
+    height: 1.6rem;
+  }
+
+  /* The KIV mark is a wordmark and reads small at the same height. */
+  .credit__mark--wordmark svg {
+    height: 1.05rem;
   }
 }

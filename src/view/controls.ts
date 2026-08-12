@@ -68,6 +68,7 @@ export function createControls(store: Store, actions: ControlActions): ControlsV
 
     // --- zoom ---
     const mapZoomRow = slider(
+      locale,
       translate(locale, 'zoom.map'),
       mapZoom,
       MIN_ZOOM,
@@ -75,6 +76,7 @@ export function createControls(store: Store, actions: ControlActions): ControlsV
       (value) => store.patch({ mapZoom: value }),
     );
     const moonZoomRow = slider(
+      locale,
       translate(locale, 'zoom.moons'),
       moonZoom,
       MIN_ZOOM,
@@ -107,6 +109,7 @@ export function createControls(store: Store, actions: ControlActions): ControlsV
 }
 
 function slider(
+  locale: 'cs' | 'en',
   label: string,
   value: number,
   min: number,
@@ -122,6 +125,12 @@ function slider(
   input.addEventListener('input', () => onChange(Number(input.value)));
 
   const row = el('label', 'controls__sliderRow');
-  row.append(el('span', 'controls__sliderLabel', label), input, el('span', 'controls__readout', `${value}×`));
+  row.append(
+    el('span', 'controls__sliderLabel', label),
+    input,
+    // Half steps, so this can be fractional — and a fraction is written with a
+    // comma in Czech.
+    el('span', 'controls__readout', `${number(locale, value, value % 1 ? 1 : 0)}×`),
+  );
   return row;
 }
