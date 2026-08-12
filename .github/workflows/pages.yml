@@ -77,9 +77,19 @@ jobs:
       - run: npm test
       - run: npm run build
 
-      - uses: actions/configure-pages@v5
-        with:
-          enablement: true
+      # No `actions/configure-pages` step, deliberately.
+      #
+      # That action exists to hand a framework the base URL its build needs.
+      # Vite here is configured with a *relative* base (see vite.config.ts), so
+      # the built site runs from any subdirectory — a Pages project path, a
+      # university web server, or a memory stick — and has no use for it.
+      #
+      # It was tried, and it fails on a fresh repository: the workflow's own
+      # token may not create a Pages site, so `enablement: true` errors with
+      # "Resource not accessible by integration" until somebody enables Pages
+      # out of band. Enabling it is a one-off — `gh api -X POST
+      # repos/OWNER/REPO/pages -f build_type=workflow` — and once done, this
+      # workflow needs nothing from the action at all.
 
       # Relative to the workspace, not to `defaults.working-directory`.
       - uses: actions/upload-pages-artifact@v3
