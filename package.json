@@ -1,0 +1,29 @@
+{
+  "name": "roemer-light-speed",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Ole Rømer's 1676 measurement of the speed of light, reconstructed from the eclipses of Io: light-time delay shown against the true configuration, and a log in which a student times eclipses and works the speed out for themselves. Czech and English.",
+  "license": "MIT",
+  "author": "Richard Lipka",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "//scripts": "The trailing `--` matters for dev: without it npm appends extra arguments bare, so `npm run dev -- --port 5184` reaches vite as npm config flags and the port is silently ignored.",
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@orrery/core": "file:../ClaudePtolemy/packages/core"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2",
+    "vite": "^8.1.5",
+    "vitest": "^4.1.10"
+  }
+}

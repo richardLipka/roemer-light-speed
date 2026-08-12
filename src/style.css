@@ -1,0 +1,483 @@
+/*
+ * Brass on parchment, c. 1750 — the orrery's look, reproduced here as this
+ * repo's own tokens. Core ships no stylesheet, so this is a copy of a visual
+ * language rather than a dependency (CLAUDE.md §4.2).
+ */
+
+@layer tokens, structure, components;
+
+@layer tokens {
+  :root {
+    --parchment: #f2e8d5;
+    --parchment-deep: #e6d8bd;
+    --ink: #2b2118;
+    --ink-soft: #5c4a35;
+    --brass: #9a6f2e;
+    --brass-bright: #c9973f;
+    --engraved: #b9a583;
+
+    --sun: #d8a33a;
+    --earth: #3f6ea8;
+    --jupiter: #a8763f;
+    --moon-io: #c8a24a;
+    --moon-europa: #9fa9b8;
+    --moon-ganymede: #8c7b62;
+    --moon-callisto: #6e6154;
+
+    --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+    --gap: 1rem;
+  }
+}
+
+@layer structure {
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+    background: var(--parchment);
+    color: var(--ink);
+    font-family: var(--serif);
+    font-size: 16px;
+    line-height: 1.5;
+  }
+
+  .app {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(20rem, 26rem);
+    grid-template-rows: 1fr auto;
+    gap: var(--gap);
+    padding: var(--gap);
+    min-height: 100vh;
+  }
+
+  .stage {
+    display: grid;
+    grid-template-rows: 1fr auto;
+    gap: var(--gap);
+    min-width: 0;
+  }
+
+  .dock--panels {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap);
+    overflow-y: auto;
+    max-height: 100vh;
+  }
+
+  .dock--controls {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  @media (max-width: 60rem) {
+    .app {
+      grid-template-columns: 1fr;
+    }
+    .dock--panels {
+      max-height: none;
+    }
+  }
+}
+
+@layer components {
+  /* --- the plan view --- */
+
+  .map {
+    position: relative;
+    aspect-ratio: 1;
+    width: min(100%, 34rem);
+    margin: 0 auto;
+    border: 1px solid var(--engraved);
+    border-radius: 50%;
+    background: radial-gradient(circle, var(--parchment) 60%, var(--parchment-deep));
+  }
+
+  .orbit {
+    position: absolute;
+    inset: 50%;
+    border: 1px solid var(--engraved);
+    border-radius: 50%;
+    translate: -50% -50%;
+  }
+
+  /* Radii as a percentage of the 5.8 AU map radius. */
+  .orbit--earth {
+    width: 17.24%;
+    aspect-ratio: 1;
+  }
+  .orbit--jupiter {
+    width: 89.66%;
+    aspect-ratio: 1;
+  }
+
+  .body {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    translate: calc(var(--x) - 50%) calc(var(--y) - 50%);
+    border-radius: 50%;
+  }
+
+  .body--sun {
+    width: 1.1rem;
+    aspect-ratio: 1;
+    background: var(--sun);
+  }
+  .body--earth {
+    width: 0.6rem;
+    aspect-ratio: 1;
+    background: var(--earth);
+  }
+  .body--jupiter {
+    width: 0.9rem;
+    aspect-ratio: 1;
+    background: var(--jupiter);
+  }
+
+  .sightline {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    height: 1px;
+    width: var(--length);
+    background: var(--brass);
+    opacity: 0.55;
+    transform-origin: 0 50%;
+    translate: var(--x) var(--y);
+    rotate: var(--angle);
+  }
+
+  /* --- the Jovian inset --- */
+
+  .jovian {
+    position: relative;
+    aspect-ratio: 2;
+    width: min(100%, 34rem);
+    margin: 0 auto;
+    border: 1px solid var(--engraved);
+    background: var(--parchment-deep);
+    overflow: hidden;
+  }
+
+  .jovian__planet {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 1.4rem;
+    aspect-ratio: 1;
+    translate: -50% -50%;
+    border-radius: 50%;
+    background: var(--jupiter);
+  }
+
+  .jovian__shadow {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 60%;
+    height: 1.4rem;
+    translate: 0 -50%;
+    transform-origin: 0 50%;
+    rotate: var(--angle);
+    background: linear-gradient(90deg, rgb(43 33 24 / 45%), rgb(43 33 24 / 10%));
+  }
+
+  .jovian__orbit {
+    position: absolute;
+    inset: 50%;
+    border: 1px solid var(--engraved);
+    border-radius: 50%;
+    translate: -50% -50%;
+    opacity: 0.6;
+  }
+
+  .jovian__orbit--io {
+    width: 19.7%;
+    aspect-ratio: 1;
+  }
+  .jovian__orbit--europa {
+    width: 31.3%;
+    aspect-ratio: 1;
+  }
+  .jovian__orbit--ganymede {
+    width: 50%;
+    aspect-ratio: 1;
+  }
+  .jovian__orbit--callisto {
+    width: 88%;
+    aspect-ratio: 1;
+  }
+
+  .moon {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 0.5rem;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    translate: calc(var(--x) - 50%) calc(var(--y) - 50%);
+  }
+
+  .moon--io {
+    background: var(--moon-io);
+  }
+  .moon--europa {
+    background: var(--moon-europa);
+  }
+  .moon--ganymede {
+    background: var(--moon-ganymede);
+  }
+  .moon--callisto {
+    background: var(--moon-callisto);
+  }
+
+  /* "Where it really is" — faint, and only when asked for. */
+  .moon--actual {
+    opacity: 0.3;
+    outline: 1px solid var(--ink-soft);
+    background: transparent;
+  }
+
+  .moon--eclipsed {
+    opacity: 0.18;
+  }
+
+  .moon__link {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    height: 1px;
+    width: var(--length);
+    background: var(--ink-soft);
+    opacity: 0.35;
+    transform-origin: 0 50%;
+    translate: var(--x) var(--y);
+    rotate: var(--angle);
+  }
+
+  :root[data-true-positions='false'] .moon--actual,
+  :root[data-true-positions='false'] .moon__link {
+    display: none;
+  }
+
+  /* --- the telescope --- */
+
+  .telescope__field {
+    position: relative;
+    height: 4rem;
+    margin: 0.5rem 0;
+    border: 1px solid var(--engraved);
+    border-radius: 2rem;
+    background: #17130e;
+  }
+
+  .telescope__planet {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 1.1rem;
+    aspect-ratio: 1;
+    translate: -50% -50%;
+    border-radius: 50%;
+    background: var(--jupiter);
+  }
+
+  .telescope__moon {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 0.35rem;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: #f6ecd6;
+    translate: calc(var(--x) - 50%) -50%;
+    transition: opacity 0.4s linear;
+  }
+
+  .telescope__moon--watched {
+    box-shadow: 0 0 0 2px var(--brass-bright);
+  }
+
+  .telescope__moon--eclipsed {
+    opacity: 0;
+  }
+
+  .telescope__status {
+    margin: 0;
+    color: var(--ink-soft);
+  }
+
+  /* --- panels --- */
+
+  .panel {
+    border: 1px solid var(--engraved);
+    background: rgb(255 255 255 / 35%);
+    padding: 0.75rem 1rem;
+  }
+
+  .panel__title {
+    margin: 0 0 0.5rem;
+    font-size: 1.05rem;
+    letter-spacing: 0.02em;
+  }
+
+  .panel__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+  }
+
+  .button {
+    font: inherit;
+    padding: 0.35rem 0.8rem;
+    border: 1px solid var(--brass);
+    background: var(--brass-bright);
+    color: #201709;
+    cursor: pointer;
+  }
+
+  .button--quiet {
+    background: transparent;
+    color: var(--ink);
+  }
+
+  .button:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+
+  .note {
+    margin: 0.4rem 0;
+    font-style: italic;
+    color: var(--ink-soft);
+    font-size: 0.92rem;
+  }
+
+  /* A status line, not an explanation — it stays when notes are hidden. */
+  .note--live {
+    font-style: normal;
+  }
+
+  .readout__headline {
+    margin: 0;
+    font-size: 1.25rem;
+  }
+
+  .readout__line {
+    margin: 0.2rem 0 0;
+  }
+
+  .readout__line--muted {
+    color: var(--ink-soft);
+  }
+
+  .notice {
+    grid-column: 1 / -1;
+    margin: 0;
+    padding: 0.5rem 0.75rem;
+    border-left: 3px solid var(--brass);
+    background: rgb(201 151 63 / 12%);
+    font-size: 0.9rem;
+  }
+
+  /* --- the log --- */
+
+  .log__table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.86rem;
+  }
+
+  .log__table th,
+  .log__table td {
+    border-bottom: 1px solid var(--engraved);
+    padding: 0.25rem 0.4rem;
+    text-align: left;
+  }
+
+  .log__cell--number {
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+
+  .log__body {
+    max-height: 18rem;
+    overflow-y: auto;
+  }
+
+  /* --- the answer --- */
+
+  .solve__route + .solve__route {
+    margin-top: 1.25rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--engraved);
+  }
+
+  .solve__routeTitle {
+    margin: 0 0 0.3rem;
+    font-size: 0.98rem;
+  }
+
+  .solve__step {
+    margin: 0.2rem 0;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .solve__answer {
+    margin: 0.5rem 0;
+    font-size: 1.1rem;
+    color: var(--brass);
+  }
+
+  .plot {
+    margin: 0.75rem 0;
+  }
+
+  .plot__field {
+    position: relative;
+    height: 10rem;
+    border-left: 1px solid var(--ink-soft);
+    border-bottom: 1px solid var(--ink-soft);
+  }
+
+  .plot__dot {
+    position: absolute;
+    width: 0.3rem;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: var(--earth);
+    translate: calc(var(--x) - 50%) calc(var(--y) - 50%);
+  }
+
+  .plot__line {
+    position: absolute;
+    height: 1px;
+    width: var(--length);
+    background: var(--brass);
+    transform-origin: 0 50%;
+    translate: var(--x) var(--y);
+    rotate: var(--angle);
+  }
+
+  .plot__axis {
+    display: block;
+    font-size: 0.82rem;
+    color: var(--ink-soft);
+    text-align: center;
+  }
+
+  .walkthrough__counter {
+    margin: 0;
+    font-size: 0.82rem;
+    color: var(--ink-soft);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+}

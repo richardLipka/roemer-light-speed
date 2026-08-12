@@ -1,0 +1,90 @@
+# Publishes the built site to GitHub Pages.
+#
+# The awkward part is the dependency. `@orrery/core` is not on npm; it is named
+# as `file:../ClaudePtolemy/packages/core`, which works on a machine that has
+# both repositories checked out side by side and does not work at all on a
+# runner that has only this one.
+#
+# So the runner is made to look like that machine. Both repositories are checked
+# out into sibling directories inside the workspace, and the relative path then
+# resolves exactly as it does locally:
+#
+#   $GITHUB_WORKSPACE/
+#     RoemerLightSpeed/        <- this repository
+#     ClaudePtolemy/           <- the orrery, for @orrery/core
+#
+# actions/checkout refuses to write outside the workspace, which is why this
+# repository goes into a subdirectory rather than the root.
+name: Deploy to Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+  # The orrery release this site is built against. Pinned rather than tracking
+  # `main`, so a change over there cannot alter or break what is published here
+  # without someone deciding to move this line. Bump it to take core's changes.
+  ORRERY_REF: v0.6.0
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    defaults:
+      run:
+        working-directory: RoemerLightSpeed
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          path: RoemerLightSpeed
+
+      - uses: actions/checkout@v5
+        with:
+          repository: richardLipka/ptolemy_copernicus_newton
+          ref: ${{ env.ORRERY_REF }}
+          path: ClaudePtolemy
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            RoemerLightSpeed/package-lock.json
+            ClaudePtolemy/package-lock.json
+
+      # @orrery/core is consumed as compiled output, never as source, so it has
+      # to be built before anything here can import it.
+      - name: Install and build @orrery/core
+        working-directory: ClaudePtolemy
+        run: |
+          npm ci
+          npm run build:core
+
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      # Relative to the workspace, not to `defaults.working-directory`.
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: RoemerLightSpeed/dist
+
+      - id: deployment
+        uses: actions/deploy-pages@v4
