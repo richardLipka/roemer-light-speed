@@ -452,6 +452,41 @@ The two differ by whatever Earth and Jupiter did during the crossing: under a
 thousandth of an AU at the real speed of light, but 0.014 AU in the game at
 twenty times slower, and in both cases a number quietly imported from the answer.
 
+### 7.2c Step one: the clock is established, not assumed
+
+**The step the app used to skip.** Everything rests on the eclipses recurring at
+a fixed interval, and the fit simply helped itself to that premise — it minimised
+residuals about a constant period without ever showing a student that a constant
+period *fits*. Rømer and Cassini had to establish it first, from observations,
+and the analysis panel now does the same in three statements before anything is
+built on it (`intervalEvidence`):
+
+1. **The interval.** Measured from consecutive pairs in their own log, reduced to
+   one orbit by dividing through the eclipse count. Nothing from a table.
+2. **Why its scatter is the observer and not the clock.** An interval is the
+   *difference of two timings*, so it carries about √2 times the reading error —
+   about ninety seconds on minute-accurate readings, which sounds alarming until
+   you halve your reading error and watch it halve too. That is the assertion the
+   test makes: six times more careful readings must give roughly six times less
+   scatter, because a clock that was genuinely wandering would put a floor under
+   it that no amount of care could pass.
+3. **The same intervals sorted by which way Earth was going.** They run long
+   while Earth draws away and short while it closes — measured on the sample log,
+   +9.7 s against −8.2 s. **This is Rømer's own first observation**, and the
+   effect at its most naked: each eclipse sends its light a little further than
+   the last. A few seconds an orbit is far too small to call a measurement, which
+   is exactly why it took years of accumulated eclipses to become a quarter of an
+   hour — and that sentence is what makes the rest of the panel make sense.
+
+Step one is shown in **every** branch, including the too-short one and the
+control experiment. A fortnight of eclipses genuinely establishes the period; it
+simply cannot yet show the shift, and reporting only "the run is too short" would
+hide the half the student got right. In the control it holds exactly as well and
+there is still nothing to measure, which is the whole of what the control shows.
+
+Nothing in step one comes from anywhere but the student's own log, so it is safe
+on the game tab as well.
+
 ### 7.2b Nothing absolute reaches the answer
 
 The claim that the method rests on differences between observations is strong

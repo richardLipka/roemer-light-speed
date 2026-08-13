@@ -346,6 +346,92 @@ export const MINIMUM_RUN_DAYS = MINIMUM_CYCLES * SYNODIC_PERIOD_DAYS;
  */
 export const residualSeconds = (row: TimedObservation): number => row.residualSeconds;
 
+// --- step one: is the clock steady at all? --------------------------------
+
+export interface IntervalEvidence {
+  /** Mean interval between successive eclipses, days. */
+  meanIntervalDays: number;
+  /** Scatter of the individual intervals about it, seconds. */
+  scatterSeconds: number;
+  /** How many consecutive pairs it was measured from. */
+  pairCount: number;
+  /** Mean interval while Earth was drawing away, against the overall mean, seconds. */
+  recedingExcessSeconds: number;
+  /** The same while Earth was closing. Negative, if the effect is real. */
+  approachingExcessSeconds: number;
+}
+
+/**
+ * The evidence that Io is a clock — measured, not assumed.
+ *
+ * **This is the step the app used to skip.** The whole method rests on the
+ * eclipses recurring at a fixed interval, and the fit simply helped itself to
+ * that premise: it minimised residuals about a constant period without ever
+ * showing the student that a constant period *fits*. A premise that important
+ * should be established from their own data before anything is built on it,
+ * which is what Rømer and Cassini had to do first as well.
+ *
+ * Two numbers come out of it, and they say opposite-looking things that are both
+ * true:
+ *
+ * - **The scatter.** Individual intervals sit within a few seconds of their
+ *   mean, which is the student's own hand rather than the clock. That is the
+ *   premise, confirmed.
+ * - **The split by direction.** Sort the same intervals by whether Earth was
+ *   drawing away from Jupiter or closing on it, and the two groups differ. The
+ *   intervals run *longer* while Earth recedes: each successive eclipse has to
+ *   send its light a little further. This is what Rømer actually noticed first,
+ *   and it is the effect at its most naked — one orbit at a time, worth seconds,
+ *   far too small to call a measurement, which is precisely why it took years of
+ *   accumulated eclipses to turn into a quarter of an hour.
+ *
+ * Intervals are reduced to one orbit by dividing through the eclipse count, so a
+ * log with gaps in it contributes on the same footing as a nightly run.
+ */
+export function intervalEvidence(rows: readonly TimedObservation[]): IntervalEvidence | null {
+  const groups = new Map<string, TimedObservation[]>();
+  for (const row of rows) {
+    const key = `${row.observation.moon}/${row.observation.phase}`;
+    const bucket = groups.get(key);
+    if (bucket) bucket.push(row);
+    else groups.set(key, [row]);
+  }
+
+  const intervals: { days: number; receding: boolean }[] = [];
+  for (const group of groups.values()) {
+    const ordered = [...group].sort((a, b) => a.sequence - b.sequence);
+    for (let i = 1; i < ordered.length; i++) {
+      const orbits = ordered[i]!.sequence - ordered[i - 1]!.sequence;
+      if (orbits <= 0) continue;
+      intervals.push({
+        days: (ordered[i]!.observation.jdRecorded - ordered[i - 1]!.observation.jdRecorded) / orbits,
+        receding: ordered[i]!.observation.distanceAu > ordered[i - 1]!.observation.distanceAu,
+      });
+    }
+  }
+
+  if (intervals.length < 2) return null;
+
+  const days = intervals.map((entry) => entry.days);
+  const meanIntervalDays = mean(days);
+  const variance = mean(days.map((d) => (d - meanIntervalDays) ** 2));
+
+  const excess = (receding: boolean): number => {
+    const group = intervals.filter((entry) => entry.receding === receding);
+    return group.length
+      ? (mean(group.map((entry) => entry.days)) - meanIntervalDays) * SECONDS_PER_DAY
+      : 0;
+  };
+
+  return {
+    meanIntervalDays,
+    scatterSeconds: Math.sqrt(variance) * SECONDS_PER_DAY,
+    pairCount: intervals.length,
+    recedingExcessSeconds: excess(true),
+    approachingExcessSeconds: excess(false),
+  };
+}
+
 // --- route 1: Rømer's own arithmetic --------------------------------------
 
 export interface TwoEclipseSolution {

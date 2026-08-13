@@ -10,6 +10,7 @@ import { cachedPositions, type PositionsAt } from './lightTime.js';
 import {
   analyse,
   buildTimetables,
+  intervalEvidence,
   type Observation,
   setSlowTermOverride,
   solveFromAll,
@@ -203,6 +204,60 @@ describe('route 2 — the whole log', () => {
     const oneKind = syntheticLog(reference, { phase: 'disappearance' });
     expect(oneKind.every((o) => o.phase === 'disappearance')).toBe(true);
     expect(Math.abs(solveFromAll(oneKind).percentError)).toBeLessThan(10);
+  });
+});
+
+describe('step one — the clock is steady, and it is shown to be', () => {
+  /*
+   * The premise the whole method rests on, established from the student's own
+   * data rather than assumed. See `intervalEvidence`.
+   */
+  const rows = buildTimetables(syntheticLog(reference, { phase: 'disappearance' })).rows;
+  const evidence = intervalEvidence(rows)!;
+
+  it('recovers the recurrence a student could time from two nights running', () => {
+    expect(evidence.meanIntervalDays).toBeCloseTo(1.769861, 3);
+  });
+
+  it('finds intervals whose scatter is the observer’s hand and not the clock', () => {
+    /*
+     * The claim is not "the intervals barely vary" — they vary by a minute and a
+     * half, because an interval is the *difference of two timings* and carries
+     * √2 times the reading error. The claim is that all of it belongs to the
+     * observer, and the way to show that is to steady the hand and watch the
+     * scatter follow.
+     *
+     * Six times more careful readings must give roughly six times less scatter.
+     * A clock that was genuinely wandering would put a floor under it that no
+     * amount of care could get past.
+     */
+    const careful = intervalEvidence(
+      buildTimetables(syntheticLog(reference, { phase: 'disappearance', scatterSeconds: 10 })).rows,
+    )!;
+
+    expect(evidence.scatterSeconds).toBeLessThan(2 * 60 * Math.SQRT2);
+    expect(careful.scatterSeconds).toBeLessThan(evidence.scatterSeconds / 4);
+    expect(evidence.pairCount).toBeGreaterThan(20);
+  });
+
+  it('shows the intervals running long while Earth draws away, and short while it closes', () => {
+    // Rømer's original observation, and the effect at its most naked: each
+    // successive eclipse has to send its light a little further, so the interval
+    // stretches. Seconds at a time — far too small to be a measurement, which is
+    // exactly why it took years of eclipses to become a quarter of an hour.
+    expect(evidence.recedingExcessSeconds).toBeGreaterThan(0);
+    expect(evidence.approachingExcessSeconds).toBeLessThan(0);
+  });
+
+  it('but only when the light has to travel', () => {
+    // The control experiment again. Time the events themselves and the intervals
+    // no longer care which way Earth is going.
+    const control = intervalEvidence(
+      buildTimetables(syntheticLog(reference, { phase: 'disappearance', mode: 'true' })).rows,
+    )!;
+    const swing = control.recedingExcessSeconds - control.approachingExcessSeconds;
+    const real = evidence.recedingExcessSeconds - evidence.approachingExcessSeconds;
+    expect(Math.abs(swing)).toBeLessThan(Math.abs(real) / 3);
   });
 });
 

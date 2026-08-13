@@ -17,6 +17,7 @@ import { translate } from '../i18n/i18n.js';
 import {
   analyse,
   type FullSolution,
+  intervalEvidence,
   MINIMUM_RUN_DAYS,
   solveFromTwo,
   widestPair,
@@ -54,6 +55,13 @@ export function createSolveView(store: Store, log: Logbook): SolveView {
       return;
     }
 
+    // Step one is built first and shown in *every* branch below, because
+    // establishing the clock is the one thing a run of any length can do — and a
+    // short run does it best. A student who has watched a fortnight of eclipses
+    // has genuinely measured the period; what they cannot yet do is see it
+    // shift. Telling them only "too short" would hide the half they got right.
+    const step1 = buildStepOne(store, full);
+
     /*
      * Too short a run, and no amount of care rescues it.
      *
@@ -68,6 +76,7 @@ export function createSolveView(store: Store, log: Logbook): SolveView {
     if (full.timings.tooShort) {
       fill(
         body,
+        ...(step1 ? [step1] : []),
         el('h3', 'solve__routeTitle', translate(locale, 'solve.shortTitle')),
         el('p', 'note note--live', translate(locale, 'solve.shortBody')),
         el(
@@ -96,6 +105,10 @@ export function createSolveView(store: Store, log: Logbook): SolveView {
     if (full.slopeSigma < 3) {
       fill(
         body,
+        // Step one still holds in the control experiment, and holding is the
+        // point: the clock is exactly as steady, and there is still nothing to
+        // measure. That contrast is the whole of what the control shows.
+        ...(step1 ? [step1] : []),
         el('h3', 'solve__routeTitle', translate(locale, 'solve.flatTitle')),
         el('p', 'solve__answer', translate(locale, 'solve.flatResult')),
         el('p', 'note note--live', translate(locale, 'solve.flatBody')),
@@ -107,6 +120,8 @@ export function createSolveView(store: Store, log: Logbook): SolveView {
 
     const pair = widestPair(full.timings.rows);
     const sections: HTMLElement[] = [];
+
+    if (step1) sections.push(step1);
 
     if (pair) {
       const [near, far] = pair;
@@ -197,6 +212,64 @@ export function createSolveView(store: Store, log: Logbook): SolveView {
 
   log.subscribe(render);
   return { root, render };
+}
+
+/**
+ * Step one: the clock, established before anything is built on it.
+ *
+ * The panel used to open with "the simple way — two eclipses", which quietly
+ * assumed the premise the whole method rests on: that the eclipses recur at a
+ * fixed interval. The fit had that premise built into it and never showed a
+ * student that a constant period *fits*. Rømer and Cassini had to establish it
+ * first, from observations, and so should this.
+ *
+ * Three statements, in the order they have to be made: here is your interval,
+ * here is why its scatter is your hand and not the clock, and here — the one a
+ * student is really owed — is the same set of intervals sorted by which way
+ * Earth was going. That last is Rømer's own first observation, and nothing in it
+ * comes from anywhere but their own log, so it is safe on the game tab too.
+ */
+function buildStepOne(store: Store, full: FullSolution): HTMLElement | null {
+  const { locale } = store.current;
+  const evidence = intervalEvidence(full.timings.rows);
+  const table = full.timings.timetables[0];
+  if (!evidence || !table) return null;
+
+  const clock = el('div', 'solve__route');
+  clock.append(
+    el('h3', 'solve__routeTitle', translate(locale, 'solve.step1Title')),
+    el(
+      'p',
+      'solve__step',
+      translate(locale, 'solve.step1Period', {
+        moon: translate(locale, `moon.${table.moon}`),
+        period: number(locale, evidence.meanIntervalDays, 5),
+        count: number(locale, evidence.pairCount, 0),
+      }),
+    ),
+    // Both of these carry measured numbers, so both are `note--live` and survive
+    // the notes toggle. They are results of step one, not commentary on it.
+    el(
+      'p',
+      'note note--live',
+      translate(locale, 'solve.step1Steady', {
+        seconds: number(locale, evidence.scatterSeconds, 0),
+      }),
+    ),
+    el(
+      'p',
+      'note note--live',
+      translate(locale, 'solve.step1Rhythm', {
+        receding: number(locale, Math.abs(evidence.recedingExcessSeconds), 1),
+        approaching: number(locale, Math.abs(evidence.approachingExcessSeconds), 1),
+      }),
+    ),
+  );
+
+  if (table.slowTermCount > 1) {
+    clock.append(el('p', 'note', translate(locale, 'solve.step1Drift')));
+  }
+  return clock;
 }
 
 /**
