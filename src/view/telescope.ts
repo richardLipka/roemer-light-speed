@@ -166,9 +166,18 @@ export function createTelescope(store: Store): TelescopeView {
         moon: translate(locale, `moon.${watched}`),
       });
 
-      delay.textContent = translate(locale, 'telescope.ageNote', {
-        minutes: number(locale, scene.lightTimeMinutes, 1),
-      });
+      // The lower lane *is* the answer, drawn: it shows where the moons really
+      // are, and the note beside it says by how many minutes. Both wait for the
+      // reveal in the game, leaving the eyepiece alone — which is all Rømer
+      // ever had. See `Store.truthVisible`.
+      const truth = store.truthVisible;
+      lanes[1]!.root.hidden = !truth;
+      field.classList.toggle('telescope__field--single', !truth);
+      delay.textContent = truth
+        ? translate(locale, 'telescope.ageNote', {
+            minutes: number(locale, scene.lightTimeMinutes, 1),
+          })
+        : translate(locale, 'telescope.ageHidden');
     },
   };
 }

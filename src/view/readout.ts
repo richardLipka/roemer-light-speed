@@ -31,9 +31,14 @@ export function createReadout(store: Store): ReadoutView {
     root,
     render(scene) {
       const { locale } = store.current;
-      lightAge.textContent = translate(locale, 'readout.lightAge', {
-        minutes: number(locale, scene.lightTimeMinutes, 1),
-      });
+      // The age of the light is the answer, stated in one line. In the game it
+      // waits for the reveal; the distance and the date do not, because those
+      // are Kepler's and the student is entitled to both.
+      lightAge.textContent = store.truthVisible
+        ? translate(locale, 'readout.lightAge', {
+            minutes: number(locale, scene.lightTimeMinutes, 1),
+          })
+        : translate(locale, 'readout.lightAgeUnknown');
       distance.textContent = `${translate(locale, 'readout.distance', {
         millionKm: millionKm(locale, scene.earthJupiterAu * AU_IN_KM),
       })} ${translate(locale, 'readout.distanceAu', {

@@ -14,6 +14,19 @@ eclipses through a telescope view, time them by hand, and work the speed out fro
 their own log — first the way Rømer did it, with two eclipses and one division,
 then properly, using every observation they took.
 
+**The comparison is always against the student's own timetable, never against
+the model's true eclipse time.** No observer in 1676 had access to the latter —
+the light *is* the event, as far as anyone watching is concerned — so the app
+fits a timetable from the student's own readings, the way Cassini's tables were
+actually built, and measures every eclipse against that. Accuracy drops to about
+Rømer's own ballpark (roughly ±10%) as the honest cost, and a run shorter than
+about one and a half of Jupiter's cycles is refused outright rather than given a
+falsely confident number.
+
+A second tab turns the same instrument into a game: light is slowed by an
+unknown factor between five and twenty, and the student measures it — using the
+same method — before finding out whether they were right.
+
 ## Running it
 
 This repository depends on `@orrery/core` from the

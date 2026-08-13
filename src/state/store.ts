@@ -225,6 +225,25 @@ export class Store {
     return C_KM_PER_S / (this.state.tab === 'game' ? this.state.slowdown : 1);
   }
 
+  /**
+   * Whether the app may show what is *really* happening.
+   *
+   * On the demonstration, always: the ghost markers and the light-age readout
+   * are the whole teaching device. In the game, not until the answer is out —
+   * and this was very nearly missed. The headline reads "light from Jupiter is
+   * 962.6 minutes old", and a student who knows the real figure is fifty
+   * minutes has the slowdown in one division. The ghost markers give it away
+   * almost as fast, and the comparison panel states it outright.
+   *
+   * So the game withholds every direct statement of the truth and leaves the
+   * eyepiece, the clock and the log — which is exactly what Rømer had. Once
+   * revealed, all of it comes back, and the mechanism can be inspected against
+   * the answer they arrived at.
+   */
+  get truthVisible(): boolean {
+    return this.state.tab !== 'game' || this.state.slowdownRevealed;
+  }
+
   /** A fresh unknown universe, and the reveal reset with it. */
   reroll(): void {
     this.patch({ slowdown: randomSlowdown(), slowdownRevealed: false });

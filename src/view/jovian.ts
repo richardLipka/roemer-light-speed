@@ -104,14 +104,18 @@ export function createJovian(store: Store): JovianView {
       title.textContent = translate(locale, 'jovian.title');
       clock.textContent = translate(locale, 'jovian.clock');
 
+      // The caption quotes the delay and the angle it turns into, so in the game
+      // it waits for the reveal along with everything else that states the
+      // answer outright — see `Store.truthVisible`.
       const target = scene.moons.find((m) => m.id === watched);
-      caption.textContent = target
-        ? translate(locale, 'jovian.caption', {
-            moon: translate(locale, `moon.${watched}`),
-            degrees: number(locale, target.ghostSeparationDegrees, 1),
-            minutes: number(locale, scene.lightTimeMinutes, 1),
-          })
-        : '';
+      caption.textContent =
+        target && store.truthVisible
+          ? translate(locale, 'jovian.caption', {
+              moon: translate(locale, `moon.${watched}`),
+              degrees: number(locale, target.ghostSeparationDegrees, 1),
+              minutes: number(locale, scene.lightTimeMinutes, 1),
+            })
+          : '';
       void planet;
     },
   };

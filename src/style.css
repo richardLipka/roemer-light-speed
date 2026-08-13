@@ -225,6 +225,11 @@
     color: var(--brass);
   }
 
+  /* An empty label would still draw its box and border on the sight line. */
+  .sightline__label--empty {
+    display: none;
+  }
+
   /* --- the Jovian inset --------------------------------------------------- */
 
   /*
@@ -364,6 +369,12 @@
 
   .telescope__lane--seen {
     top: 0;
+  }
+
+  /* With the lower lane withheld (the game, before the reveal) the eyepiece
+     takes the whole field rather than leaving a black band behind. */
+  .telescope__field--single .telescope__lane--seen {
+    height: 100%;
   }
 
   .telescope__lane--true {

@@ -39,7 +39,7 @@ export function createSolveView(store: Store, log: Logbook): SolveView {
   root.append(title, body);
 
   const render = (): void => {
-    const { locale, timingMode } = store.current;
+    const { locale, timingMode, tab, slowdownRevealed } = store.current;
     title.textContent = translate(locale, 'solve.title');
 
     // One experiment at a time. Rows from the two timing modes answer different
@@ -159,16 +159,36 @@ export function createSolveView(store: Store, log: Logbook): SolveView {
           seconds: number(locale, full.rmsResidualSeconds, 0),
         }),
       ),
-      el(
-        'p',
-        'solve__step',
-        translate(locale, 'solve.comparison', {
-          percent: percent(locale, Math.abs(full.percentError)),
-        }),
-      ),
       el('p', 'note', translate(locale, 'solve.meanNote')),
-      el('p', 'note', translate(locale, 'solve.roemer')),
     );
+
+    /*
+     * How did you do — but only where the answer is already public.
+     *
+     * On the game tab this panel was giving the game away. It quoted the error
+     * against `referenceSpeedKmPerS`, which on that tab is the *hidden* slowed
+     * speed, so a student who had not yet pressed "show me the answer" could
+     * read their percentage error and back out the answer in one division. The
+     * reveal has to be the only route to it, or it is not a game.
+     */
+    const hidden = tab === 'game' && !slowdownRevealed;
+    if (!hidden) {
+      careful.append(
+        el(
+          'p',
+          'solve__step',
+          translate(locale, 'solve.comparison', {
+            // The universe's own true value, not the constant. On the game tab
+            // "the true value is 299 792 km/s" would be a flat contradiction of
+            // the percentage printed beside it.
+            trueSpeed: speed(locale, store.referenceSpeedKmPerS),
+            percent: percent(locale, Math.abs(full.percentError)),
+          }),
+        ),
+        el('p', 'note', translate(locale, 'solve.roemer')),
+      );
+    }
+
     sections.push(careful);
 
     fill(body, ...sections);

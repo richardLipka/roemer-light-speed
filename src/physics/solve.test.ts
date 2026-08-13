@@ -3,6 +3,7 @@ import { BODIES, jdFromCalendar } from '@orrery/core';
 import { nbodyEngine } from '@orrery/core/engines/nbody';
 import { vsop87Engine } from '@orrery/core/engines/vsop87';
 
+import { earthJupiterAu } from './configuration.js';
 import { LIGHT_TIME_PER_AU_S, SECONDS_PER_DAY } from './constants.js';
 import { findEclipses } from './eclipses.js';
 import { cachedPositions, type PositionsAt } from './lightTime.js';
@@ -72,11 +73,16 @@ function syntheticLog(
       // Timing the event itself rather than its arrival is the control
       // experiment: identical readings, identical hand, no light travel.
       const watched = mode === 'seen' ? eclipse.jdSeen : eclipse.jdTrue;
+      const jdRecorded = watched + (gaussian * scatterSeconds) / SECONDS_PER_DAY;
       return {
-        jdRecorded: watched + (gaussian * scatterSeconds) / SECONDS_PER_DAY,
+        jdRecorded,
         moon: 'io' as const,
         phase: eclipse.phase,
-        distanceAu: eclipse.distanceAu,
+        // At the reading, from the orbital model — as `main.ts` records it, and
+        // *not* `eclipse.distanceAu`, which is the distance the light actually
+        // crossed and therefore a fact about the event rather than about the
+        // observation.
+        distanceAu: earthJupiterAu(positions, jdRecorded),
         mode,
       };
     });
@@ -199,6 +205,76 @@ describe('route 2 — the whole log', () => {
   });
 });
 
+describe('nothing absolute reaches the answer', () => {
+  /*
+   * The audit these tests came out of. The method is supposed to rest on
+   * *differences between observations* and nothing else, and that is a claim
+   * strong enough to check rather than assert. Each of these perturbs something
+   * an observer could not have known, and demands that the answer not move.
+   */
+  const log = syntheticLog(reference);
+
+  it('is unmoved by shifting every recorded time by a constant', () => {
+    // A calendar off by a week, a clock off by an hour, an epoch chosen
+    // differently — none of it can matter, because only the intervals are used.
+    // The distances travel with their rows, exactly as a column of an almanac
+    // copied out by hand would.
+    // Held to a relative tenth of a part per million. Not exact equality: a
+    // Julian Date near 2 430 000 resolves about 40 microseconds in a double, so
+    // shifting the log moves the readings themselves in the last bit. The fit is
+    // done in days since the first reading precisely so that this is the *only*
+    // thing left — before that change the same shift moved the answer eighty
+    // times further, purely through cancellation.
+    const shifted = log.map((o) => ({ ...o, jdRecorded: o.jdRecorded + 7.25 }));
+    const before = solveFromAll(log).speedKmPerS;
+    const after = solveFromAll(shifted).speedKmPerS;
+    expect(Math.abs(after - before) / before).toBeLessThan(1e-7);
+  });
+
+  it('is unmoved by a counting aid that is three percent wrong', () => {
+    // The one piece of model knowledge left in the analysis is the moon's rough
+    // recurrence, used to round each gap to a whole number of eclipses. It is
+    // bookkeeping an observatory does trivially, and this is the proof that it
+    // is only bookkeeping: the period that reaches the answer is refitted from
+    // the student's timings, so a hint wrong by fifty times the light-time
+    // signal changes nothing.
+    for (const scale of [0.97, 0.99, 1.01, 1.03]) {
+      expect(solveFromAll(log, undefined, scale).speedKmPerS, `hint ×${scale}`).toBeCloseTo(
+        solveFromAll(log).speedKmPerS,
+        6,
+      );
+    }
+  });
+
+  it('never consults a true eclipse time, because a row cannot hold one', () => {
+    // Structural rather than behavioural, and it is the assertion that keeps the
+    // rest honest: an `Observation` carries a reading, a moon, a kind of event
+    // and a distance. If a field for the true time ever comes back, this fails.
+    expect(Object.keys(log[0]!).sort()).toEqual([
+      'distanceAu',
+      'jdRecorded',
+      'mode',
+      'moon',
+      'phase',
+    ]);
+  });
+
+  it('takes the distance at the reading, not at the event', () => {
+    // The leak this audit found. `eclipse.distanceAu` is the distance the light
+    // actually crossed, measured from the true emission — a fact about the
+    // event. What an observer has is the distance at the moment they wrote the
+    // time down. At the real speed of light the two differ by under a
+    // thousandth of an AU, but the principle is what is being tested, and in the
+    // game at twenty times slower it becomes 0.014 AU of imported answer.
+    const eclipses = findEclipses(reference, 'io', JD_START, JD_START + 40);
+    for (const eclipse of eclipses.slice(0, 5)) {
+      const atReading = earthJupiterAu(reference, eclipse.jdSeen);
+      expect(Math.abs(atReading - eclipse.distanceAu)).toBeGreaterThan(0);
+      expect(Math.abs(atReading - eclipse.distanceAu)).toBeLessThan(0.002);
+    }
+  });
+});
+
 describe('why the timetable gets exactly one drift term or two', () => {
   /*
    * The boundary was measured, not reasoned, and both ways of crossing it are
@@ -293,9 +369,13 @@ describe('the control experiment — timing the events themselves', () => {
   }, 60_000);
 
   it('spans the same distances as the real run, so it is a fair comparison', () => {
+    // Not identical to the last decimal, and should not be: each row's distance
+    // is taken at the moment it was *written down*, and the two runs write the
+    // same eclipse down three quarters of an hour apart. Earth moves in that
+    // time. A ten-thousandth of an AU against a swing of two and a quarter.
     const span = (log: Observation[]) =>
       Math.max(...log.map((o) => o.distanceAu)) - Math.min(...log.map((o) => o.distanceAu));
-    expect(span(control)).toBeCloseTo(span(real), 6);
+    expect(span(control)).toBeCloseTo(span(real), 3);
     expect(span(control)).toBeGreaterThan(1.5);
   });
 

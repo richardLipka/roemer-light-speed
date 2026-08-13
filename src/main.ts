@@ -17,7 +17,7 @@ import './style.css';
 import { BODIES } from '@orrery/core';
 
 import { translate } from './i18n/i18n.js';
-import { nextExtremum } from './physics/configuration.js';
+import { earthJupiterAu, nextExtremum } from './physics/configuration.js';
 import { GALILEAN_IDS } from './physics/constants.js';
 import { type Eclipse, nearestEclipse, nextEclipse } from './physics/eclipses.js';
 import type { Observation } from './physics/solve.js';
@@ -179,11 +179,19 @@ function record(): void {
   // have written down: when they pressed, which moon, which kind of event, and
   // how far Jupiter was by the orbital model. No true time is stored, because
   // nobody has ever had one — see the head of `solve.ts`.
+  //
+  // The distance is taken **at the moment of the reading**, which is the only
+  // date the observer has. It was previously `eclipse.distanceAu` — the distance
+  // the light actually crossed, measured from the true emission — and that is a
+  // fact about the event rather than about the observation. The two differ by
+  // whatever Earth and Jupiter did during the crossing: nothing at the real
+  // speed of light, but 0.014 AU in the game at twenty times slower, which is a
+  // number quietly imported from the answer.
   log.add({
     jdRecorded: pressed,
     moon,
     phase: eclipse.phase,
-    distanceAu: eclipse.distanceAu,
+    distanceAu: earthJupiterAu(scenePositions, pressed),
     mode: timingMode,
   });
 
@@ -248,11 +256,13 @@ function loadSampleLog(): void {
     );
     const slip = (random() - 0.5) * 150; // seconds, a human judging a fade
     const watched = timingMode === 'seen' ? eclipse.jdSeen : eclipse.jdTrue;
+    const jdRecorded = watched + slip / 86_400;
     observations.push({
-      jdRecorded: watched + slip / 86_400,
+      jdRecorded,
       moon,
       phase: eclipse.phase,
-      distanceAu: eclipse.distanceAu,
+      // At the reading, not at the event — as in `record()` above.
+      distanceAu: earthJupiterAu(scenePositions, jdRecorded),
       mode: timingMode,
     });
   }
@@ -308,7 +318,9 @@ function buildDocks(): void {
     delayCurveView.root,
     logPanel.root,
     solveView.root,
-    comparison.root,
+    // "What you see, and what is really there" is a statement of the answer from
+    // beginning to end, so in the game it appears only once the answer is out.
+    ...(store.truthVisible ? [comparison.root] : []),
   );
 }
 
@@ -366,7 +378,11 @@ function frame(now: number): void {
 function renderPanels(): void {
   const { locale, showTruePositions, showNotes } = store.current;
   document.documentElement.lang = locale;
-  document.documentElement.dataset['truePositions'] = String(showTruePositions);
+  // The ghost markers show where the bodies really are, which in the game is the
+  // answer drawn to scale — Io's pair sits 136° apart at fifteen times slower.
+  document.documentElement.dataset['truePositions'] = String(
+    showTruePositions && store.truthVisible,
+  );
   document.documentElement.dataset['notes'] = showNotes ? 'on' : 'off';
   document.title = translate(locale, 'app.title');
   notice.textContent = translate(locale, 'notes.datesWarning');

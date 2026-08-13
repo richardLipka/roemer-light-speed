@@ -90,9 +90,13 @@ export function createMap(store: Store): MapView {
       // honest way to show it on this view: as a number on the path, not as a
       // gap between markers that would be a hundredth of a pixel wide.
       place(label, (scene.earth.x + scene.jupiter.x) / 2, (scene.earth.y + scene.jupiter.y) / 2);
-      label.textContent = translate(locale, 'map.lightTakes', {
-        minutes: number(locale, scene.lightTimeMinutes, 1),
-      });
+      // Blank in the game until the answer is out — see `Store.truthVisible`.
+      label.textContent = store.truthVisible
+        ? translate(locale, 'map.lightTakes', {
+            minutes: number(locale, scene.lightTimeMinutes, 1),
+          })
+        : '';
+      label.classList.toggle('sightline__label--empty', !store.truthVisible);
     },
   };
 }

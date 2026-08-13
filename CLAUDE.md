@@ -445,6 +445,35 @@ The distance comes from the orbital model, which is where Rømer's came from too
 and is recorded with the row rather than recomputed later — otherwise a student
 who cleared or edited the log would get a silently different answer.
 
+**The distance is taken at the moment of the reading, not at the event.** It was
+`eclipse.distanceAu` — the distance the light actually crossed, measured from the
+true emission — which is a fact about the *event* and not about the observation.
+The two differ by whatever Earth and Jupiter did during the crossing: under a
+thousandth of an AU at the real speed of light, but 0.014 AU in the game at
+twenty times slower, and in both cases a number quietly imported from the answer.
+
+### 7.2b Nothing absolute reaches the answer
+
+The claim that the method rests on differences between observations is strong
+enough to check rather than assert, and `solve.test.ts` checks it four ways.
+Each perturbs something no observer could have known and demands the answer not
+move:
+
+- **Shift every recorded time by a week.** A calendar off by days, a clock off by
+  an hour, a differently chosen epoch — none of it can matter. This one found a
+  real defect: the fit was being done on raw Julian Dates near 2 430 000, which
+  resolve about 40 µs in a double while the residuals being fitted are a few
+  hundred *milliseconds*. Referring everything to the first reading — the whole
+  fit now lives in days-since-origin — cut the shift sensitivity by a factor of
+  eighty, down to float noise.
+- **Get the counting aid 3% wrong.** The one piece of model knowledge left is the
+  moon's rough recurrence, used to round each gap to a whole number of eclipses.
+  The period that reaches the answer is refitted from the student's timings, so a
+  hint wrong by fifty times the light-time signal must change nothing at all.
+- **Count the fields on a row.** Structural, and it is what keeps the rest
+  honest: if a field for the true time ever comes back, the test fails.
+- **Check the distance is the one at the reading**, not at the event.
+
 ### 7.2a The timetable is fitted, not looked up
 
 **The single most important correction this project has had.** The column now
@@ -1115,6 +1144,22 @@ to its event now reaches much further into the past.
 - **The reveal is one-way**, and the manual slowdown control appears only after
   it. A game that let a student peek, adjust and re-measure would teach the one
   habit this whole app exists to argue against.
+- **Until the reveal, the app states no truth at all** (`Store.truthVisible`).
+  This was very nearly missed and the game was trivially spoilt without it: the
+  headline read *"light from Jupiter is 962.6 minutes old"*, which against a
+  known fifty minutes is the answer in one division. So are the ghost markers,
+  the map's delay label, the Jovian caption, the telescope's second lane, the
+  whole comparison panel, and — worst, because it looked like a result rather
+  than a giveaway — the solve panel's *"you are out by 8.1%"*, which is the
+  answer by one more division. All of it waits. What is left is the eyepiece,
+  the clock and the log, which is precisely what Rømer had.
+- **One error percentage on screen, not two.** The game once quoted its own,
+  computed from the ratio of slowdown factors, beside the solve panel's,
+  computed from the ratio of speeds: 7.5% against 8.1% for the same run. Both
+  defensible, and having both is a bug.
+- **The reference speed is the universe's own.** `solve.comparison` takes it as a
+  parameter; hardcoded, it announced "the true value is 299 792 km/s" beside a
+  percentage computed against something else entirely.
 - **The verdict is in words, against the history.** Rømer was 32% out and right
   about everything that mattered, so inside that deserves to be told so; and the
   method's own systematic is a few percent, so nothing under five is skill.

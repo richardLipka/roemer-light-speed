@@ -57,6 +57,7 @@ export function createGamePanel(store: Store, log: Logbook): GamePanelView {
     // converge, which is worth more than the final digit.
     const entries = log.in(timingMode);
     let measuredSlowdown: number | null = null;
+    let errorPercent = 0;
 
     if (entries.length >= 3) {
       const solution = solveFromAll(entries, store.referenceSpeedKmPerS);
@@ -64,6 +65,11 @@ export function createGamePanel(store: Store, log: Logbook): GamePanelView {
         // Their speed against the real one: how many times slower this universe
         // looks from their data.
         measuredSlowdown = C_KM_PER_S / solution.speedKmPerS;
+        // The same error the solve panel quotes, and deliberately not a fresh
+        // one computed from the slowdown factors. Those two differ by the ratio
+        // of the factors — 7.5% against 8.1% on one run — and two answers to
+        // "how far off am I" on one screen is a bug however defensible each is.
+        errorPercent = Math.abs(solution.percentError);
         parts.push(
           el(
             'p',
@@ -92,7 +98,6 @@ export function createGamePanel(store: Store, log: Logbook): GamePanelView {
       );
 
       if (measuredSlowdown !== null) {
-        const errorPercent = Math.abs((100 * (measuredSlowdown - slowdown)) / slowdown);
         parts.push(
           el(
             'p',

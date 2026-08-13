@@ -179,7 +179,17 @@ export interface Timings {
  * the fitted epoch lands exactly on it, its residual is zero by construction,
  * and a false point at zero would drag the slope toward nothing.
  */
-export function buildTimetables(observations: readonly Observation[]): Timings {
+export function buildTimetables(
+  observations: readonly Observation[],
+  /**
+   * Deliberately perturb the counting aid, so a test can prove it carries no
+   * information. See `solve.test.ts`: a hint 3% wrong must move the answer by
+   * nothing at all, because all it ever does is round a gap to a whole number of
+   * periods — and if it ever stopped being harmless, that would mean the model's
+   * own period had found a way into the measurement.
+   */
+  hintScale = 1,
+): Timings {
   const byMoon = new Map<GalileanId, Observation[]>();
   for (const observation of observations) {
     const bucket = byMoon.get(observation.moon);
@@ -192,7 +202,7 @@ export function buildTimetables(observations: readonly Observation[]): Timings {
 
   for (const [moon, group] of byMoon) {
     const sorted = [...group].sort((a, b) => a.jdRecorded - b.jdRecorded);
-    const hintDays = eclipsePeriodDays(moon);
+    const hintDays = eclipsePeriodDays(moon) * hintScale;
 
     const sequence: number[] = [0];
     for (let i = 1; i < sorted.length; i++) {
@@ -241,13 +251,29 @@ export function buildTimetables(observations: readonly Observation[]): Timings {
       return row;
     });
 
+    // Fit against time *since the first reading*, never against the Julian Date
+    // itself. Two reasons, and they are the same reason twice over.
+    //
+    // Physically, the method rests on differences between observations, so an
+    // absolute epoch has no business in the arithmetic — shifting every reading
+    // by a week must not move the answer by anything at all.
+    //
+    // Numerically, a JD near 2 430 000 resolves about 40 microseconds in a
+    // double, and the residuals being fitted are a few hundred *milli*seconds.
+    // Fitting the raw dates threw away most of the significant digits of the one
+    // quantity that matters: measured, a seven-day shift of the whole log moved
+    // the fitted speed by 0.02 km/s out of nothing but cancellation. Referred to
+    // the first reading the targets are small and the noise disappears.
+    const origin = sorted[0]!.jdRecorded;
+
     const coefficients = leastSquares(
       design,
-      used.map((i) => sorted[i]!.jdRecorded),
+      used.map((i) => sorted[i]!.jdRecorded - origin),
     );
     if (!coefficients) continue;
 
-    const predict = (phaseIndex: number, n: number): number => {
+    /** Days after the first reading, which is the frame the fit lives in. */
+    const predictOffset = (phaseIndex: number, n: number): number => {
       let value = coefficients[phaseIndex]!;
       const x = scaled(n);
       for (let power = 1; power <= slowTermCount; power++) {
@@ -263,17 +289,21 @@ export function buildTimetables(observations: readonly Observation[]): Timings {
 
     const epochJd: Partial<Record<EclipsePhase, number>> = {};
     usable.forEach(([phase], phaseIndex) => {
-      epochJd[phase] = predict(phaseIndex, 0);
+      epochJd[phase] = origin + predictOffset(phaseIndex, 0);
     });
 
     usable.forEach(([, indices], phaseIndex) => {
       for (const i of indices) {
-        const jdFromTimetable = predict(phaseIndex, sequence[i]!);
+        const offset = predictOffset(phaseIndex, sequence[i]!);
+        // Differenced inside the centred frame. Taking `jdRecorded` minus a
+        // reconstructed Julian Date would subtract two numbers near 2 430 000 to
+        // get a few hundred milliseconds, and hand back mostly rounding error.
+        const residualDays = sorted[i]!.jdRecorded - origin - offset;
         rows.push({
           observation: sorted[i]!,
           sequence: sequence[i]!,
-          jdFromTimetable,
-          residualSeconds: (sorted[i]!.jdRecorded - jdFromTimetable) * SECONDS_PER_DAY,
+          jdFromTimetable: origin + offset,
+          residualSeconds: residualDays * SECONDS_PER_DAY,
         });
       }
     });
@@ -445,8 +475,9 @@ export interface FullSolution {
 export function solveFromAll(
   observations: readonly Observation[],
   referenceKmPerS = C_KM_PER_S,
+  hintScale = 1,
 ): FullSolution {
-  const timings = buildTimetables(observations);
+  const timings = buildTimetables(observations, hintScale);
   const rows = timings.rows;
   if (rows.length < 3) throw new Error('need at least three usable eclipses');
 
