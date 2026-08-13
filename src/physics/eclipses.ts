@@ -116,6 +116,7 @@ export function findEclipses(
   moon: BodyId,
   jdFrom: number,
   jdTo: number,
+  perAuDays?: number,
 ): Eclipse[] {
   const orbit = BODIES[moon].satellite;
   if (!orbit) throw new Error(`'${moon}' is not a satellite`);
@@ -138,7 +139,7 @@ export function findEclipses(
     if (previous > 0 !== current > 0) {
       const phase: EclipsePhase = previous > 0 ? 'disappearance' : 'reappearance';
       const jdTrue = refine(positionsAt, moon, previousJd, jd, axis);
-      found.push(describe(positionsAt, moon, phase, jdTrue));
+      found.push(describe(positionsAt, moon, phase, jdTrue, perAuDays));
     }
 
     previousJd = jd;
@@ -171,12 +172,19 @@ export function nextEclipse(
   moon: BodyId,
   jdFrom: number,
   phase?: EclipsePhase,
+  perAuDays?: number,
 ): Eclipse {
   const orbit = BODIES[moon].satellite;
   if (!orbit) throw new Error(`'${moon}' is not a satellite`);
 
   for (let start = jdFrom; start < jdFrom + 20 * orbit.periodDays; start += orbit.periodDays) {
-    for (const eclipse of findEclipses(positionsAt, moon, start, start + orbit.periodDays)) {
+    for (const eclipse of findEclipses(
+      positionsAt,
+      moon,
+      start,
+      start + orbit.periodDays,
+      perAuDays,
+    )) {
       if (eclipse.jdTrue >= jdFrom && (!phase || eclipse.phase === phase)) return eclipse;
     }
   }
@@ -187,37 +195,58 @@ export function nextEclipse(
 /**
  * The eclipse an observer was watching when they pressed the key.
  *
- * Matched on **seen** time, because that is the only clock the observer has —
- * they are timing the arrival of the news, not the event. Returns null when
- * nothing happened near enough to be what they meant, which is what stops a
- * stray key press from entering the log as an eclipse three hours late.
+ * Matched by default on **seen** time, because that is the only clock a real
+ * observer has — they are timing the arrival of the news, not the event.
+ * Returns null when nothing happened near enough to be what they meant, which
+ * is what stops a stray key press from entering the log as an eclipse three
+ * hours late.
+ *
+ * `matchOn: 'true'` matches the event itself instead. No observer can do that,
+ * which is exactly the point: it is the app's control experiment, the run in
+ * which light is infinitely fast. See `TimingMode` in `solve.ts`.
  *
  * The first version of the recorder asked `nextEclipse` for the next event at
  * or after *two periods ago*, which is an eclipse three and a half days in the
  * past. Every logged observation came out about 2 800 minutes late and the
  * whole measurement was nonsense.
  */
+export interface NearestEclipseOptions {
+  toleranceDays?: number;
+  phase?: EclipsePhase;
+  matchOn?: 'seen' | 'true';
+  /** Light time per AU, days — the game's universe runs slower. */
+  perAuDays?: number;
+}
+
 export function nearestEclipse(
   positionsAt: PositionsAt,
   moon: BodyId,
-  jdSeen: number,
-  toleranceDays = 30 / 1440,
-  phase?: EclipsePhase,
+  jdPressed: number,
+  options: NearestEclipseOptions = {},
 ): Eclipse | null {
+  const { toleranceDays = 30 / 1440, phase, matchOn = 'seen', perAuDays } = options;
+
   const orbit = BODIES[moon].satellite;
   if (!orbit) throw new Error(`'${moon}' is not a satellite`);
 
-  // A period and a half either side is comfortably more than enough to hold the
-  // event nearest any instant, whichever phase is wanted.
-  const window = orbit.periodDays * 1.5;
-  const candidates = findEclipses(positionsAt, moon, jdSeen - window, jdSeen + window).filter(
-    (eclipse) => !phase || eclipse.phase === phase,
-  );
+  // Two periods either side, and the margin is for the game rather than for
+  // history. Matching on seen times has to reach back past the light time to the
+  // event behind it: 52 minutes at the real speed, but up to seventeen hours
+  // when light runs twenty times slower, which is a serious fraction of Io's
+  // 1.77-day period.
+  const window = orbit.periodDays * 2;
+  const candidates = findEclipses(
+    positionsAt,
+    moon,
+    jdPressed - window,
+    jdPressed + window,
+    perAuDays,
+  ).filter((eclipse) => !phase || eclipse.phase === phase);
 
   let best: Eclipse | null = null;
   let bestGap = Infinity;
   for (const eclipse of candidates) {
-    const gap = Math.abs(eclipse.jdSeen - jdSeen);
+    const gap = Math.abs((matchOn === 'seen' ? eclipse.jdSeen : eclipse.jdTrue) - jdPressed);
     if (gap < bestGap) {
       bestGap = gap;
       best = eclipse;
@@ -273,8 +302,9 @@ function describe(
   moon: BodyId,
   phase: EclipsePhase,
   jdTrue: number,
+  perAuDays?: number,
 ): Eclipse {
-  const light = seenAt(positionsAt, 'jupiter', 'earth', jdTrue);
+  const light = seenAt(positionsAt, 'jupiter', 'earth', jdTrue, perAuDays);
   return {
     moon,
     phase,

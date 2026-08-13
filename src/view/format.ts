@@ -77,3 +77,32 @@ export function speed(locale: Locale, kmPerSecond: number): string {
 export function percent(locale: Locale, value: number): string {
   return number(locale, value, 1);
 }
+
+/**
+ * How fast the clock is running, in whatever unit reads smallest.
+ *
+ * "0,001 d/s" told a student nothing, and at real time the ladder's own unit
+ * gives "0,000 d/s" — a readout that says the clock has stopped when it is
+ * running perfectly. So the number is written in the largest unit that keeps it
+ * under about ninety: seconds, then minutes, then hours, then days.
+ *
+ * The seconds form is doing double duty and is the reason for choosing it. Sky
+ * seconds per real second *is* the multiple of real time, so "1 s/s" reads as
+ * real time and "10 s/s" as ten times real time without a word of explanation.
+ */
+export function rate(locale: Locale, daysPerSecond: number): string {
+  const seconds = daysPerSecond * 86_400;
+  if (seconds < 90) return `${number(locale, seconds, seconds < 10 ? 1 : 0)} s/s`;
+
+  const minutes = seconds / 60;
+  if (minutes < 90) return `${number(locale, minutes, minutes < 10 ? 1 : 0)} min/s`;
+
+  // A day exactly is a day, not 24 hours. The band stops at 24 rather than
+  // running on, so the app's default rate reads as "1.0 d/s" — the unit anyone
+  // would use for it — instead of as an hour count nobody would.
+  const hours = minutes / 60;
+  if (hours < 24) return `${number(locale, hours, hours < 10 ? 1 : 0)} h/s`;
+
+  const days = hours / 24;
+  return `${number(locale, days, days < 10 ? 1 : 0)} d/s`;
+}

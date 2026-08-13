@@ -16,11 +16,12 @@ import { AU_IN_KM } from '@orrery/core';
 import { translate } from '../i18n/i18n.js';
 import {
   type FullSolution,
+  MINIMUM_RUN_DAYS,
   solveFromAll,
   solveFromTwo,
   widestPair,
 } from '../physics/solve.js';
-import type { ObservationLog } from '../state/log.js';
+import type { Logbook } from '../state/log.js';
 import type { Store } from '../state/store.js';
 import { el, fill } from '../view/dom.js';
 import { number, percent, speed } from '../view/format.js';
@@ -30,7 +31,7 @@ export interface SolveView {
   render(): void;
 }
 
-export function createSolveView(store: Store, log: ObservationLog): SolveView {
+export function createSolveView(store: Store, log: Logbook): SolveView {
   const title = el('h2', 'panel__title');
   const body = el('div', 'solve__body');
 
@@ -38,21 +39,77 @@ export function createSolveView(store: Store, log: ObservationLog): SolveView {
   root.append(title, body);
 
   const render = (): void => {
-    const { locale } = store.current;
+    const { locale, timingMode } = store.current;
     title.textContent = translate(locale, 'solve.title');
 
-    if (log.count < 3) {
+    // One experiment at a time. Rows from the two timing modes answer different
+    // questions and a fit across both would answer neither.
+    const entries = log.in(timingMode);
+
+    if (entries.length < 3) {
       fill(body, el('p', 'note note--live', translate(locale, 'solve.needMore')));
       return;
     }
 
-    const pair = widestPair(log.entries);
-    const full = solveFromAll(log.entries);
+    const full = solveFromAll(entries, store.referenceSpeedKmPerS);
+
+    /*
+     * Too short a run, and no amount of care rescues it.
+     *
+     * Over less than about one and a half of Jupiter's cycles the light-time
+     * curve and the drift in the eclipse interval cannot be told apart, and the
+     * fit will happily report a confident number that is mostly the second one.
+     * Measured, the control experiment on such a run "detects" light travel at
+     * six standard errors in a universe that has none. So this is refused
+     * outright rather than qualified — and it is the reason Rømer needed years
+     * of Cassini's accumulated observations, which is worth a student's time.
+     */
+    if (full.timings.tooShort) {
+      fill(
+        body,
+        el('h3', 'solve__routeTitle', translate(locale, 'solve.shortTitle')),
+        el('p', 'note note--live', translate(locale, 'solve.shortBody')),
+        el(
+          'p',
+          'solve__step',
+          translate(locale, 'solve.shortSpan', {
+            days: number(locale, full.timings.spanDays, 0),
+            needed: number(locale, MINIMUM_RUN_DAYS, 0),
+          }),
+        ),
+      );
+      return;
+    }
+
+    /*
+     * Nothing to divide by.
+     *
+     * Timing the events themselves gives a slope of zero plus the student's own
+     * scatter, and `AU / slope` on a slope that is pure noise yields a confident
+     * six-digit speed of light with a colossal error bar attached. Printing it
+     * and letting the error bar carry the warning would be a trap: the eye reads
+     * the big number. So below three standard errors this says outright that
+     * there is no dependence on distance here, which is the correct reading of
+     * the experiment and the whole reason for running it.
+     */
+    if (full.slopeSigma < 3) {
+      fill(
+        body,
+        el('h3', 'solve__routeTitle', translate(locale, 'solve.flatTitle')),
+        el('p', 'solve__answer', translate(locale, 'solve.flatResult')),
+        el('p', 'note note--live', translate(locale, 'solve.flatBody')),
+        plot(store, full),
+        el('p', 'note note--live', translate(locale, 'solve.flatCompare')),
+      );
+      return;
+    }
+
+    const pair = widestPair(full.timings.rows);
     const sections: HTMLElement[] = [];
 
     if (pair) {
       const [near, far] = pair;
-      const simple = solveFromTwo(near, far);
+      const simple = solveFromTwo(near, far, store.referenceSpeedKmPerS);
       const block = el('div', 'solve__route');
       block.append(
         el('h3', 'solve__routeTitle', translate(locale, 'solve.simpleTitle')),
@@ -109,6 +166,7 @@ export function createSolveView(store: Store, log: ObservationLog): SolveView {
           percent: percent(locale, Math.abs(full.percentError)),
         }),
       ),
+      el('p', 'note', translate(locale, 'solve.meanNote')),
       el('p', 'note', translate(locale, 'solve.roemer')),
     );
     sections.push(careful);
@@ -128,7 +186,7 @@ function plot(store: Store, solution: FullSolution): HTMLElement {
   const { locale } = store.current;
 
   const distances = solution.points.map((p) => p.distanceAu);
-  const minutes = solution.points.map((p) => p.latenessSeconds / 60);
+  const minutes = solution.points.map((p) => p.residualSeconds / 60);
   const xMin = Math.min(...distances);
   const xMax = Math.max(...distances);
   const yMin = Math.min(...minutes);
@@ -141,7 +199,7 @@ function plot(store: Store, solution: FullSolution): HTMLElement {
   for (const point of solution.points) {
     const dot = el('div', 'plot__dot');
     dot.style.setProperty('--x', `${toX(point.distanceAu)}%`);
-    dot.style.setProperty('--y', `${toY(point.latenessSeconds / 60)}%`);
+    dot.style.setProperty('--y', `${toY(point.residualSeconds / 60)}%`);
     field.append(dot);
   }
 

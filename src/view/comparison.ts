@@ -17,7 +17,7 @@ import { AU_IN_KM } from '@orrery/core';
 
 import { translate } from '../i18n/i18n.js';
 import { solveFromAll } from '../physics/solve.js';
-import type { ObservationLog } from '../state/log.js';
+import type { Logbook } from '../state/log.js';
 import type { Store } from '../state/store.js';
 import { el, fill } from './dom.js';
 import { millionKm, number, speed } from './format.js';
@@ -28,7 +28,7 @@ export interface ComparisonView {
   render(scene: Scene): void;
 }
 
-export function createComparison(store: Store, log: ObservationLog): ComparisonView {
+export function createComparison(store: Store, log: Logbook): ComparisonView {
   const title = el('h2', 'panel__title');
   const body = el('div', 'comparison__body');
 
@@ -85,8 +85,15 @@ export function createComparison(store: Store, log: ObservationLog): ComparisonV
       // Once they have a number of their own, close the loop with it: this is
       // what your measurement says the delay should be, and here is the delay
       // the model is actually showing.
-      if (log.count >= 3) {
-        const solution = solveFromAll(log.entries);
+      //
+      // Only when there *is* a number. The control experiment yields a slope
+      // indistinguishable from zero, and turning that into "your measurement
+      // says the delay is 3 seconds" would dress up a null result as a bad
+      // measurement — the opposite of what it shows. See `solveView.ts`.
+      const entries = log.in(store.current.timingMode);
+      const solution = entries.length >= 3 ? solveFromAll(entries) : null;
+
+      if (solution && solution.slopeSigma >= 3) {
         const theirMinutes = (scene.earthJupiterAu * (AU_IN_KM / solution.speedKmPerS)) / 60;
         rows.push(
           el('hr', 'comparison__rule'),
@@ -105,6 +112,11 @@ export function createComparison(store: Store, log: ObservationLog): ComparisonV
               minutes: number(locale, Math.abs(theirMinutes - scene.lightTimeMinutes), 1),
             }),
           ),
+        );
+      } else if (solution) {
+        rows.push(
+          el('hr', 'comparison__rule'),
+          el('p', 'note note--live', translate(locale, 'comparison.flat')),
         );
       } else {
         rows.push(el('p', 'note note--live', translate(locale, 'comparison.needMeasurement')));

@@ -18,14 +18,15 @@ import { BODIES } from '@orrery/core';
 
 import { translate } from './i18n/i18n.js';
 import { nextExtremum } from './physics/configuration.js';
-import { DEFAULT_MOON, GALILEAN_IDS } from './physics/constants.js';
-import { nearestEclipse, nextEclipse } from './physics/eclipses.js';
+import { GALILEAN_IDS } from './physics/constants.js';
+import { type Eclipse, nearestEclipse, nextEclipse } from './physics/eclipses.js';
 import type { Observation } from './physics/solve.js';
-import { ObservationLog } from './state/log.js';
-import { RATE_LADDER, Store } from './state/store.js';
+import { Logbook } from './state/log.js';
+import { CLOSE_UP_RATE, OPENING_JD, Store } from './state/store.js';
 import { createLogPanel } from './log/logPanel.js';
 import { createSolveView } from './log/solveView.js';
 import { createWalkthrough } from './walkthrough/walkthrough.js';
+import { createGamePanel } from './game/gamePanel.js';
 import { createControls } from './view/controls.js';
 import { createCredit } from './view/credit.js';
 import { createComparison } from './view/comparison.js';
@@ -34,12 +35,15 @@ import { button, el } from './view/dom.js';
 import { createJovian } from './view/jovian.js';
 import { createMap } from './view/map.js';
 import { createReadout } from './view/readout.js';
-import { number } from './view/format.js';
 import { buildScene, scenePositions } from './view/scene.js';
-import { createTelescope } from './view/telescope.js';
+import { closeUpZoom, createTelescope } from './view/telescope.js';
 
 const store = new Store();
-const log = new ObservationLog();
+
+// Two logs behind one handle: the historical run and the game's, kept apart
+// because an observation made where light is fifteen times slower would drag a
+// fit across the two universes and there would be nothing on screen to say why.
+const log = new Logbook(() => store.current.tab === 'game');
 
 /** Each moon's sidereal period, so the scene can size the ghost separation. */
 const MOON_PERIODS = Object.fromEntries(
@@ -48,15 +52,62 @@ const MOON_PERIODS = Object.fromEntries(
 
 // --- actions the controls invoke ------------------------------------------
 
+/**
+ * When the event the student is timing arrives.
+ *
+ * Timing what you see means waiting for the light; timing the event itself means
+ * being there. The jump buttons have to land on whichever one is armed, or the
+ * control experiment sends you to a moment forty minutes after the thing you
+ * came to watch.
+ */
+function jdWatched(eclipse: Eclipse): number {
+  return store.current.timingMode === 'seen' ? eclipse.jdSeen : eclipse.jdTrue;
+}
+
+/** The next eclipse of the watched moon, in whichever universe is on screen. */
+function upcoming(): Eclipse {
+  return nextEclipse(
+    scenePositions,
+    store.current.moon,
+    store.clock.julianDate,
+    undefined,
+    store.lightTimePerAuDays,
+  );
+}
+
 const actions = {
   toggleClock(): void {
     if (store.clock.isRunning) store.clock.pause();
     else store.clock.play();
   },
   nextEclipse(): void {
-    const eclipse = nextEclipse(scenePositions, store.current.moon, store.clock.julianDate);
+    const eclipse = upcoming();
     // Stop a little before it, so the fade can actually be watched.
-    store.clock.setJd(eclipse.jdSeen - 4 / 1440);
+    store.clock.setJd(jdWatched(eclipse) - 4 / 1440);
+    store.ticked();
+  },
+  /**
+   * The eclipse at something like the pace it happens.
+   *
+   * Ten times real time, which is the compromise this whole feature turns on:
+   * the fade takes three and a half minutes and a class will not sit through it,
+   * but at a hundred times it is a blink and there is nothing to judge. At ten,
+   * the disappearance takes twenty-one seconds — long enough that pressing the
+   * button is a real decision, and short enough to do twice.
+   *
+   * The zoom goes up with it, because at zoom 1 the moons sit within a few
+   * pixels of the planet and a fade nobody can see is not worth slowing down
+   * for — and it is set from the moon being watched rather than to a fixed
+   * number, or a Callisto close-up would magnify Callisto straight off the edge
+   * of the field. And the clock is started: a close-up you have to remember to
+   * press play on is a close-up that gets missed.
+   */
+  watchCloseUp(): void {
+    const { moon } = store.current;
+    const eclipse = upcoming();
+    store.clock.setJd(jdWatched(eclipse) - 5 / 1440);
+    store.patch({ rateDaysPerSecond: CLOSE_UP_RATE, moonZoom: closeUpZoom(moon) });
+    store.clock.play();
     store.ticked();
   },
   jumpNearest(): void {
@@ -79,25 +130,25 @@ const walkthrough = createWalkthrough(store);
 const logPanel = createLogPanel(store, log, loadSampleLog, () => record());
 const solveView = createSolveView(store, log);
 const controls = createControls(store, actions);
-const delayCurveView = createDelayCurve(store);
+const delayCurveView = createDelayCurve(store, log);
 const comparison = createComparison(store, log);
+const gamePanel = createGamePanel(store, log);
 const credit = createCredit(store);
 
 const topBar = el('div', 'topbar');
+const tabBar = el('nav', 'tabs');
 
 const stage = el('div', 'stage');
 stage.append(map.root, jovian.root, telescope.root);
 
 const left = el('div', 'dock dock--left');
-left.append(controls.root, walkthrough.root);
 
 const right = el('div', 'dock dock--right');
-right.append(readout.root, delayCurveView.root, logPanel.root, solveView.root, comparison.root);
 
 const notice = el('p', 'notice');
 
 const app = el('div', 'app');
-app.append(topBar, left, stage, right, notice, credit.root);
+app.append(topBar, tabBar, left, stage, right, notice, credit.root);
 document.body.append(app);
 
 // --- recording ------------------------------------------------------------
@@ -112,29 +163,31 @@ document.body.append(app);
  * in the past and logged every observation about 2 800 minutes late.
  */
 function record(): void {
-  const { locale, moon } = store.current;
+  const { locale, moon, timingMode } = store.current;
   const pressed = store.clock.julianDate;
-  const eclipse = nearestEclipse(scenePositions, moon, pressed);
+  const eclipse = nearestEclipse(scenePositions, moon, pressed, {
+    matchOn: timingMode,
+    perAuDays: store.lightTimePerAuDays,
+  });
 
   if (!eclipse) {
     logPanel.report(translate(locale, 'log.nothingThere'));
     return;
   }
 
+  // Four things, and every one of them is something an observer of 1676 could
+  // have written down: when they pressed, which moon, which kind of event, and
+  // how far Jupiter was by the orbital model. No true time is stored, because
+  // nobody has ever had one — see the head of `solve.ts`.
   log.add({
     jdRecorded: pressed,
-    jdPredicted: eclipse.jdTrue,
+    moon,
     phase: eclipse.phase,
     distanceAu: eclipse.distanceAu,
+    mode: timingMode,
   });
 
-  logPanel.report(
-    translate(locale, 'log.recorded', {
-      // Through the formatter, not toFixed: Czech writes 53,4 where English
-      // writes 53.4, and this is the one number a student reads after each press.
-      minutes: number(locale, (pressed - eclipse.jdTrue) * 1440, 1),
-    }),
-  );
+  logPanel.report(translate(locale, 'log.recorded', { count: log.countIn(timingMode) }));
 }
 
 /**
@@ -155,30 +208,56 @@ function seededRandom(seed: number): () => number {
   };
 }
 
+/** Observations per year of campaign — enough to see the shape, few enough to scroll. */
+const SAMPLES_PER_YEAR = 20;
+const DAYS_PER_YEAR = 365.25;
+
 /**
  * A ready-made log, so the analysis can be reached inside a 45-minute lesson.
  *
+ * Spread evenly across the campaign length rather than packed into the first
+ * year, because the length is the point of the setting: at one year the lateness
+ * climbs and falls once and could be almost anything, and at six it has come
+ * back to where it started five times over. Nothing that drifts does that.
+ *
+ * Generated for whichever experiment is armed, and anchored at the app's opening
+ * date rather than wherever the clock happens to be — the readings have to land
+ * inside the window the delay curve draws, or the overlay that makes the
+ * periodicity visible has nothing to show.
+ *
  * The scatter is deliberate: a clean log would fit suspiciously well and teach
- * the wrong thing about measurement (CLAUDE.md §7.4).
+ * the wrong thing about measurement (CLAUDE.md §7.4). It is applied identically
+ * in both modes, so the flat result of the control experiment is a genuine null
+ * and not a tidier version of the real one.
  */
 function loadSampleLog(): void {
+  const { moon, timingMode, campaignYears } = store.current;
   const random = seededRandom(1676);
   const observations: Observation[] = [];
-  let jd = store.clock.julianDate;
 
-  for (let i = 0; i < 60; i++) {
-    const eclipse = nextEclipse(scenePositions, DEFAULT_MOON, jd, 'disappearance');
+  const count = Math.round(SAMPLES_PER_YEAR * campaignYears);
+  const spacing = (campaignYears * DAYS_PER_YEAR) / count;
+
+  for (let i = 0; i < count; i++) {
+    const eclipse = nextEclipse(
+      scenePositions,
+      moon,
+      OPENING_JD + i * spacing,
+      'disappearance',
+      store.lightTimePerAuDays,
+    );
     const slip = (random() - 0.5) * 150; // seconds, a human judging a fade
+    const watched = timingMode === 'seen' ? eclipse.jdSeen : eclipse.jdTrue;
     observations.push({
-      jdRecorded: eclipse.jdSeen + slip / 86_400,
-      jdPredicted: eclipse.jdTrue,
+      jdRecorded: watched + slip / 86_400,
+      moon,
       phase: eclipse.phase,
       distanceAu: eclipse.distanceAu,
+      mode: timingMode,
     });
-    jd = eclipse.jdTrue + 6; // spread the run across the year
   }
 
-  log.replaceAll(observations);
+  log.replaceMode(timingMode, observations);
 }
 
 // --- the top bar ----------------------------------------------------------
@@ -194,6 +273,45 @@ function buildTopBar(): void {
   );
 }
 
+/**
+ * The two tabs, and switching one changes the universe underneath everything.
+ *
+ * The clock is left where it is rather than reset. A student who has found a
+ * good stretch of eclipses and flips across to see what the same moment looks
+ * like with slower light is asking a good question, and moving the date out from
+ * under them would be answering a different one.
+ */
+function buildTabs(): void {
+  const { locale, tab } = store.current;
+  tabBar.replaceChildren(
+    ...(['demonstration', 'game'] as const).map((id) =>
+      button(`tab${id === tab ? ' tab--active' : ''}`, translate(locale, `tab.${id}`), () =>
+        store.patch({ tab: id }),
+      ),
+    ),
+  );
+}
+
+/**
+ * The right dock, which is not the same on both tabs.
+ *
+ * The walkthrough and the game are the two things that explain what a student is
+ * doing, and showing both at once would offer two answers to the same question.
+ */
+function buildDocks(): void {
+  const game = store.current.tab === 'game';
+
+  left.replaceChildren(controls.root, ...(game ? [] : [walkthrough.root]));
+  right.replaceChildren(
+    readout.root,
+    ...(game ? [gamePanel.root] : []),
+    delayCurveView.root,
+    logPanel.root,
+    solveView.root,
+    comparison.root,
+  );
+}
+
 document.addEventListener('keydown', (event) => {
   const target = event.target as HTMLElement | null;
   if (target && ['INPUT', 'SELECT', 'TEXTAREA'].includes(target.tagName)) return;
@@ -201,13 +319,18 @@ document.addEventListener('keydown', (event) => {
   if (event.code === 'Space') {
     event.preventDefault();
     record();
-  } else if (event.code === 'ArrowRight') {
-    store.clock.step(1 / 1440);
-    store.ticked();
-  } else if (event.code === 'ArrowLeft') {
-    store.clock.step(-1 / 1440);
-    store.ticked();
+    return;
   }
+
+  const direction = event.code === 'ArrowRight' ? 1 : event.code === 'ArrowLeft' ? -1 : 0;
+  if (!direction) return;
+
+  // A minute a press, or a second with shift held. The fine step is what makes
+  // the clock genuinely steerable: an eclipse is judged to a few seconds, and a
+  // minute is the whole quantity being argued about a fifth of the time.
+  event.preventDefault();
+  store.clock.step((direction * (event.shiftKey ? 1 / 60 : 1)) / 1440);
+  store.ticked();
 });
 
 // --- the frame ------------------------------------------------------------
@@ -224,7 +347,7 @@ let previous = performance.now();
  * telescope came up blank until something moved.
  */
 function renderScene(): void {
-  const scene = buildScene(store.clock.julianDate, MOON_PERIODS);
+  const scene = buildScene(store.clock.julianDate, MOON_PERIODS, store.lightTimePerAuDays);
   map.render(scene);
   jovian.render(scene);
   readout.render(scene);
@@ -248,15 +371,18 @@ function renderPanels(): void {
   document.title = translate(locale, 'app.title');
   notice.textContent = translate(locale, 'notes.datesWarning');
   buildTopBar();
+  buildTabs();
+  buildDocks();
   credit.render();
   controls.render();
   walkthrough.render();
   logPanel.render();
   solveView.render();
+  gamePanel.render();
   renderScene();
 }
 
 store.subscribe(renderPanels);
-store.clock.setRate(RATE_LADDER[store.current.rateIndex] ?? 1);
+store.clock.setRate(store.current.rateDaysPerSecond);
 renderPanels();
 requestAnimationFrame(frame);

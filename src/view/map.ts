@@ -19,10 +19,11 @@
  */
 
 import { translate } from '../i18n/i18n.js';
-import type { Store } from '../state/store.js';
+import { MAX_MAP_ZOOM, MIN_ZOOM, type Store } from '../state/store.js';
 import { el } from './dom.js';
 import { number } from './format.js';
 import type { Scene } from './scene.js';
+import { wheelZoom } from './wheelZoom.js';
 
 /** Map radius in AU at zoom 1. Jupiter's aphelion is 5.46, so it stays on. */
 const MAP_RADIUS_AU = 5.9;
@@ -46,6 +47,13 @@ export function createMap(store: Store): MapView {
 
   const root = el('div', 'map');
   root.append(field);
+
+  wheelZoom(field, {
+    read: () => store.current.mapZoom,
+    write: (mapZoom) => store.patch({ mapZoom }),
+    min: MIN_ZOOM,
+    max: MAX_MAP_ZOOM,
+  });
 
   return {
     root,

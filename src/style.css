@@ -58,15 +58,20 @@
   .app {
     display: grid;
     grid-template-columns: minmax(15rem, 17rem) minmax(0, 1fr) minmax(20rem, 25rem);
-    grid-template-rows: auto minmax(0, 1fr) auto auto;
+    grid-template-rows: auto auto minmax(0, 1fr) auto auto;
     grid-template-areas:
       'top    top    top'
+      'tabs   tabs   tabs'
       'left   stage  right'
       'notice notice notice'
       'credit credit credit';
     gap: var(--gap);
     padding: var(--gap);
     min-height: 100vh;
+  }
+
+  .tabs {
+    grid-area: tabs;
   }
 
   .topbar {
@@ -120,7 +125,7 @@
   @media (max-width: 75rem) {
     .app {
       grid-template-columns: 1fr;
-      grid-template-areas: 'top' 'stage' 'left' 'right' 'notice';
+      grid-template-areas: 'top' 'tabs' 'stage' 'left' 'right' 'notice';
     }
     .dock,
     .stage {
@@ -336,12 +341,61 @@
 
   .telescope__field {
     position: relative;
-    height: 5.5rem;
+    height: 9rem;
     margin: 0.5rem 0;
     border: 1px solid var(--engraved);
     border-radius: 0.4rem;
     background: #14100b;
     overflow: hidden;
+  }
+
+  /*
+   * Two bands: the eyepiece above, the same system without the light delay
+   * below. Each is its own containing block, so a marker's `left: 62%` resolves
+   * against the band — which is the field's full width — and the two rows share
+   * one horizontal scale without any of them being told about the other.
+   */
+  .telescope__lane {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 50%;
+  }
+
+  .telescope__lane--seen {
+    top: 0;
+  }
+
+  .telescope__lane--true {
+    top: 50%;
+    border-top: 1px dashed rgb(203 187 156 / 35%);
+    /* The lower band is the picture nature will not send, so it is drawn a
+       shade cooler than the eyepiece rather than identically. */
+    background: rgb(159 169 184 / 6%);
+  }
+
+  .telescope__laneLabel {
+    position: absolute;
+    left: 0.45rem;
+    top: 0.3rem;
+    font-size: 0.62rem;
+    letter-spacing: 0.04em;
+    color: #8d8069;
+  }
+
+  /* The band a key press is timed against, so the target is never in doubt. */
+  .telescope__lane--armed .telescope__laneLabel {
+    color: var(--brass-bright);
+  }
+
+  .telescope__lane--armed::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--brass-bright);
   }
 
   .telescope__planet {
@@ -389,9 +443,24 @@
     white-space: nowrap;
   }
 
+  /* The lower band is a reconstruction, not a sight — drawn cooler than the
+     warm point of light an eyepiece actually shows. */
+  .telescope__lane--true .telescope__moon {
+    background: #cfd8e4;
+    box-shadow: 0 0 0.3rem rgb(207 216 228 / 55%);
+  }
+
+  .telescope__lane--true .telescope__moon--watched {
+    box-shadow: 0 0 0 2px var(--brass-bright), 0 0 0.35rem rgb(207 216 228 / 70%);
+  }
+
   .telescope__status {
     margin: 0;
     color: var(--ink-soft);
+  }
+
+  .telescope__delay {
+    margin: 0.15rem 0 0;
   }
 
   /* --- panels ------------------------------------------------------------- */
@@ -615,6 +684,30 @@
     opacity: 0.25;
   }
 
+  /*
+   * The student's own readings, over the model's curve.
+   *
+   * Bigger than a curve dot and in the Earth colour, because they have to read
+   * as measurements sitting on a prediction rather than as part of the same
+   * line. Nothing is fitted to put them there — see the head of `delayCurve.ts`.
+   */
+  .curve__reading {
+    position: absolute;
+    left: var(--x);
+    top: var(--y);
+    translate: -50% -50%;
+    width: 0.3rem;
+    height: 0.3rem;
+    border-radius: 50%;
+    background: var(--earth);
+    opacity: 0.75;
+  }
+
+  .curve__overlayNote {
+    margin: 0.35rem 0 0;
+    font-size: 0.8rem;
+  }
+
   .curve__caption {
     margin: 0.35rem 0 0;
     font-size: 0.78rem;
@@ -788,6 +881,74 @@
     margin: 0.6rem 0 0;
     border: 0;
     border-top: 1px solid var(--brass);
+  }
+
+  /* --- the two tabs -------------------------------------------------------
+   * Drawn as a row of file tabs rather than as buttons, because they switch
+   * which universe the whole page is describing — a heavier thing than any
+   * control in the left dock, and it should not look like one of them.
+   */
+  .tabs {
+    display: flex;
+    gap: 0.3rem;
+    border-bottom: 1px solid var(--engraved);
+  }
+
+  .tab {
+    font: inherit;
+    font-size: 0.9rem;
+    padding: 0.35rem 0.9rem;
+    border: 1px solid var(--engraved);
+    border-bottom: none;
+    border-radius: 0.3rem 0.3rem 0 0;
+    background: transparent;
+    color: var(--ink-soft);
+    cursor: pointer;
+    /* Sit on the rule rather than above it, so the active tab can break it. */
+    margin-bottom: -1px;
+  }
+
+  .tab--active {
+    background: var(--parchment);
+    border-color: var(--brass);
+    border-bottom: 1px solid var(--parchment);
+    color: var(--ink);
+    font-weight: 600;
+  }
+
+  /* --- the game ----------------------------------------------------------- */
+
+  .game {
+    border-color: var(--brass);
+  }
+
+  .game__answer {
+    margin: 0.4rem 0;
+    font-size: 1.05rem;
+    color: var(--brass);
+  }
+
+  .game__verdict {
+    margin: 0.4rem 0 0;
+    padding: 0.4rem 0.6rem;
+    background: rgb(201 151 63 / 14%);
+    border-left: 3px solid var(--brass);
+  }
+
+  /* Typed rate entry, beside the slider that finds it roughly. */
+  .controls__exact {
+    font: inherit;
+    font-size: 0.8rem;
+    width: 5rem;
+    padding: 0.1rem 0.3rem;
+    border: 1px solid var(--engraved);
+    background: rgb(255 255 255 / 45%);
+    color: var(--ink);
+  }
+
+  .controls__unit {
+    font-size: 0.78rem;
+    color: var(--ink-soft);
   }
 }
 

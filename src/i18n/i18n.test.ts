@@ -35,12 +35,12 @@ describe('the two dictionaries', () => {
 
 describe('substitution', () => {
   it('fills named placeholders', () => {
-    expect(translate('en', 'log.count', { count: 12 })).toContain('12');
-    expect(translate('cs', 'log.count', { count: 12 })).toContain('12');
+    expect(translate('en', 'log.countIn.seen', { count: 12 })).toContain('12');
+    expect(translate('cs', 'log.countIn.seen', { count: 12 })).toContain('12');
   });
 
   it('leaves an unknown placeholder alone rather than printing "undefined"', () => {
-    expect(translate('en', 'log.count', {})).toContain('{count}');
+    expect(translate('en', 'log.countIn.seen', {})).toContain('{count}');
   });
 });
 

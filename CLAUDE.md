@@ -396,20 +396,95 @@ That matching is where the recorder was most badly wrong. It asked for the next
 eclipse at or after *two periods ago* — an event three and a half days in the
 past — so every row came out about **2 800 minutes late** and the whole
 measurement was nonsense. `nearestEclipse.test.ts` pins down both the fix and
-the failure, including that matching on true time rather than seen time must not
-work.
+the failure, including that matching on true time must never happen by default.
+
+### 7.1a The control experiment
+
+Seen time is the default and the honest case. The interface also offers the
+**impossible** one: time the eclipse *itself*, as though light were infinitely
+fast. `TimingMode` in `solve.ts`, `matchOn` in `nearestEclipse`, and it must
+always be asked for explicitly.
+
+This is not a display option, it is the experiment that makes the argument close.
+An effect that appears in one run and not the other, with the same eclipses, the
+same moon and the same unsteady hand, cannot be blamed on the clock, the
+instrument or the observer. Timing what you see, the lateness runs from 33 to 52
+minutes and the fitted slope stands at some seventy standard errors. Timing the
+event, the lateness is the student's own scatter about zero and the slope falls
+under two. Both are asserted in `solve.test.ts`.
+
+Three consequences the code has to honour:
+
+- **The two runs are never mixed.** Every observation records its mode; the log
+  keeps both and everything that analyses it filters to one. Storage went to
+  version 2 for the field, and a row without one is discarded rather than
+  guessed — the single case a guess would get wrong is the control, where a
+  mislabelled row silently poisons the comparison.
+- **A slope indistinguishable from zero must not be divided into.** `AU / slope`
+  on noise yields a confident six-digit speed of light with a huge error bar, and
+  the eye reads the big number, not the bar. Below three standard errors
+  (`slopeSigma`), the interface says outright that there is nothing there.
+- **The jumps and the telescope follow the armed mode**, or the control
+  experiment sends a student to a moment forty minutes after the event they came
+  to watch.
 
 ### 7.2 The log
 
-Six columns: date, going-in or coming-out, **when you saw it**, **when it was
-due**, **how late**, and **how far Jupiter was**. The last two are recorded at
-the same moment and never derived later — a student who cleared or edited a row
-would otherwise get a silently different answer. Persisted to `localStorage`,
-and the app must still work when that is unavailable.
+Six columns: date, going-in or coming-out, **when you saw it**, **what your
+timetable says**, **the difference**, and **how far Jupiter was**. Persisted to
+`localStorage`, and the app must still work when that is unavailable.
 
-Putting *how late* next to *how far* is what makes the pattern findable by eye,
-before any graph is drawn — the lateness climbs as the distance climbs. That is
-how Rømer found it, reading down a table, so those two columns earn their width.
+Putting *the difference* next to *how far* is what makes the pattern findable by
+eye, before any graph is drawn — the difference climbs as the distance climbs.
+That is how Rømer found it, reading down a table, so those two columns earn their
+width.
+
+A row stores four things and only four: **a time, a moon, a kind of event, and a
+distance**. Every one of them is something an observer of 1676 could write down.
+The distance comes from the orbital model, which is where Rømer's came from too,
+and is recorded with the row rather than recomputed later — otherwise a student
+who cleared or edited the log would get a silently different answer.
+
+### 7.2a The timetable is fitted, not looked up
+
+**The single most important correction this project has had.** The column now
+headed *what your timetable says* used to hold the model's own light-free eclipse
+time and was headed *when it was due*. That is arithmetically convenient and
+historically false, and the falsehood is not a detail: it hands the student a
+quantity nobody has ever possessed. There was no independent channel to Jupiter.
+The light *is* the event, as far as any observer is concerned, and a column
+asserting otherwise deletes the entire difficulty of the discovery.
+
+What Rømer had was a table built from **earlier observations** — Cassini's tables
+were an empirical fit: watch the eclipses, find the interval, extrapolate. So the
+comparison that produced the discovery was never observation against reality. It
+was **observation against other observations**, timings from one part of the year
+against a rhythm established in another.
+
+So `buildTimetables` fits the student's own log with a period and an epoch per
+kind of event, and every row is compared with *their* extrapolation. No true time
+is consulted anywhere. Four consequences, all of them physics rather than
+concessions:
+
+- **Accuracy drops by an order of magnitude, to about ±10%.** That is the honest
+  price. What is left over is the drift in the eclipse interval — precisely what
+  made Cassini's tables imperfect and precisely why Cassini did not believe the
+  result. Rømer himself was 32% out; the two-eclipse route now lands at about
+  34%, which is not a coincidence worth hiding.
+- **The mean delay is not recoverable at all.** Fitting an epoch absorbs any
+  constant offset; only the *variation* survives. This is exactly why Rømer's
+  result was "twenty-two minutes to cross the Earth's orbit" rather than a delay
+  to Jupiter in minutes, and the interface says so (`solve.meanNote`).
+- **The run must outlast about one and a half synodic cycles**, ~598 days. Below
+  that the Earth–Jupiter distance and the drift trace curves no fit can separate
+  — measured, the *control* experiment on a 402-day run reported a detection at
+  six and a half standard errors in a universe with no light travel at all. Such
+  runs are refused outright (§7.5).
+- **The interval is allowed to drift**, with one slow term or two. See
+  `slowTerms`; the boundary was measured, and both ways of crossing it are
+  spectacular — a second term on a one-cycle run returned a speed 818% out
+  because the timetable had absorbed the signal, and a single term on a nine-year
+  run came out 86% out because it could not follow the drift.
 
 ### 7.3 Two routes to the answer, and the simple one comes first
 
@@ -470,7 +545,35 @@ lesson is 45 minutes. Two mitigations, both honest: a fast-forward that jumps to
 the next eclipse, and an option to load a pre-recorded log so the analysis can be
 reached directly. The pre-recorded log must carry realistic timing scatter — a
 clean one would give a suspiciously perfect answer and teach the wrong thing
-about measurement.
+about measurement. The same scatter is applied in both timing modes, so the
+control experiment's null is a genuine null and not a tidier version of the real
+run.
+
+### 7.5 How long the run covers
+
+A campaign length — **two**, three, six or twelve years — governing both the
+ready-made log and the window the delay curve draws. Twenty observations a year,
+spread evenly across the span and anchored at the app's opening date rather than
+at wherever the clock happens to be, so the readings land inside the window the
+curve covers.
+
+The setting exists for two reasons, and the second is not optional.
+
+**It makes the periodicity visible.** Jupiter returns to the same arrangement
+with Earth every 399 days, so a run shorter than that shows a *trend* and a run
+longer than it shows a **periodicity**. A trend could be a clock running slow, an
+instrument wearing, an observer's habit settling in. None of those come back to
+where they started every thirteen months. Stretching the run until the difference
+has risen and fallen five times is what turns a suggestive graph into one that
+rules the alternatives out — the argument §8's step 3 asks a student to follow.
+
+**It is also the condition under which the method works at all.** With the
+timetable fitted from the student's own data (§7.2a), a run inside one cycle has
+its signal eaten by the fitted interval. The shortest option is therefore two
+years and not one, and a hand-recorded run below ~598 days is refused with an
+explanation rather than given a number. That refusal is a teaching moment worth
+having: it is the reason Rømer needed years of Cassini's accumulated records, and
+an app that hid it would be teaching that he was merely slow.
 
 ---
 
@@ -486,7 +589,10 @@ The steps, in Rømer's order:
 1. **The clock.** Io goes round Jupiter every 1.769 days and vanishes into its
    shadow each time. In the 1600s this was the most reliable clock anyone could
    see from anywhere on Earth, which is why observatories were tabulating it at
-   all — it was the best hope for working out longitude at sea.
+   all — it was how longitude was found **on land**, and it redrew the map of
+   Europe. At sea it never worked: a telescope will not hold steady on a rolling
+   deck. (The interface strings were corrected by the §2.1a audit; this line said
+   "the best hope for working out longitude at sea" and was wrong with them.)
 2. **Something is wrong.** The tables predict; the observations drift. Eclipses
    come early at some times of year and late at others.
 3. **The wrong explanations, taken seriously.** Maybe Io's orbit varies. Maybe
@@ -572,10 +678,44 @@ panel whose entire job is showing them. Square, at zoom 1, all four fit.
 
 The inset carries a standing paragraph on **why these bodies are a clock at
 all** — each moon circles at a fixed rate, Io every 1.77 days through to
-Callisto's 16.69, and each vanishes into the shadow once per orbit. That is the
+Callisto's 16.69. Io and Europa vanish into the shadow on every revolution; the
+outer two sometimes slip past it (§2.1a — Callisto on only 8 of 21). That is the
 premise the whole measurement rests on, and without it the panel is a pretty
 diagram. The argument a student has to be able to make is: *if the eclipses
 arrive at the wrong time, the fault cannot be in the clock.*
+
+### 9.1c The telescope has two lanes
+
+The upper lane is the eyepiece: light delay and all, the only thing anybody has
+ever seen. The lower lane is the same system at the same instant drawn as if
+light were infinitely fast — the picture nature refuses to send.
+
+Separate lanes rather than a ghost overlaid on the eyepiece, because the upper
+lane has to stay *purely* what an observer sees or the panel stops being evidence
+and becomes an illustration. The lower one is drawn to Jupiter's real position
+with its own line of sight and its own shadow axis, so it is a straight answer to
+the question rather than a half-corrected mixture of the two cases.
+
+Run a close-up and the point makes itself with no prose at all: the lower moon
+goes dark half an hour before the upper one begins to fade, because the news is
+still in flight. The lane a key press is timed against carries a mark, so the
+target is never in doubt.
+
+### 9.1d Watching an eclipse at the pace it happens
+
+A close-up button: jump to five minutes before the event, set the clock to **ten
+times real time**, magnify, and start running. All four are needed — a close-up
+you have to remember to press play on is one that gets missed.
+
+Ten is the compromise the feature turns on. The fade takes three and a half
+minutes and a class will not sit through it; at a hundred times it is a blink and
+there is nothing to judge. At ten it takes twenty-one seconds: long enough that
+pressing the button is a real decision, short enough to do twice.
+
+The zoom is computed from the moon being watched (`closeUpZoom`), not fixed. The
+four orbits differ by a factor of four and a half, and a zoom set high enough to
+be worth it for Io throws Callisto clean off the field — a Callisto close-up
+would magnify Callisto out of view.
 
 ### 9.1b Observed against real, after the measurement
 
@@ -590,19 +730,68 @@ the student's *own* figure: *you got 297 428 km/s, which would make the delay
 51.9 minutes — that is 0.4 minutes from the real delay.* Their measurement error,
 turned back into the quantity they were measuring.
 
-### 9.2 The delay curve
+### 9.2 The delay curve, and the student's readings over it
 
-Light time plotted against date over three years, with the nearest and furthest
-approaches marked and a playhead showing where the clock stands. Measured: 33
-minutes at the nearest approach, 52 at the furthest.
+Light time plotted against date across the campaign length (§7.5), with the
+nearest and furthest approaches marked and a playhead showing where the clock
+stands. Measured: 33 minutes at the nearest approach, 52 at the furthest.
+
+**Drawn as a variation about its own mean, not as an absolute**, and that is not
+presentation — it is what the method can see. The timetable is fitted from the
+student's own timings and fitting it absorbs whatever constant delay there is
+(§7.2a). Plotting an absolute here and their differences over it would put the
+two on axes that do not meet. The intro line therefore quotes the *swing* rather
+than the two endpoints, because a number no tick mark agrees with is worse than
+no number.
 
 §3 rules out a standing plot of the app's own numbers, and this is the exception
 that defines the rule. The banned one is the **residual** plot, which hands over
 the result before the student has asked the question. This one hands over the
 *setup* — where in the cycle to look, and why the effect is far larger at some
 times of year than others. A student cannot discover that by scrubbing a
-timeline, and asking them to is not teaching. The two jump buttons exist for the
-same reason.
+timeline, and asking them to is not teaching. The jump buttons exist for the same
+reason.
+
+**The student's own readings are drawn over it**, and the reason this costs
+nothing is worth stating plainly: lateness is measured against a prediction
+containing no light travel at all, so a reading's lateness simply *is* the light
+travel time — the same quantity the curve is drawn from. The dots land on the
+curve with nothing fitted, scaled or shifted. Measured: the readings track the
+curve to within the reading scatter, and their mean sits at mid-field.
+
+In the control mode the same dots collapse onto zero while the curve goes on
+swinging above them — measured, a mean at 0.94 of the field height against 0.49.
+The axis is therefore scaled to hold the readings as well as the curve, or the
+flat line would be drawn off the bottom of the box and the one comparison the
+panel exists for could not be seen.
+
+Rebuilt only when the span, the mode or the log changes. Twelve years costs about
+110 ms in samples and turning points, which is nothing on a click and a visible
+stutter on every frame.
+
+### 9.2a Time is a continuous control
+
+A **logarithmic** slider from real time to 100 days a second, with named presets
+beside it. It was seven fixed rungs stepped with − and +, and both ends were
+wrong: between rungs there was nothing usable, and the slowest rung was still 172
+times real time, so the app could not watch an eclipse at anything like its own
+pace.
+
+Log space is the only sane geometry for seven decades — equal distances along the
+track are equal ratios, so the fine end gets as much of the track as the coarse
+end. The track counts 0 to 1000 in whole steps rather than carrying the logarithm
+directly, because a range input steps from its *minimum*: a step of 0.01 on a
+track starting at −4.9365 never lands on the maximum, and dragging fully right
+gave 99 d/s instead of 100.
+
+The readout writes the rate in the largest unit that keeps the number under about
+ninety — seconds, minutes, hours, days. Days per second is useless at the slow
+end, where real time reads as "0.000 d/s" and a running clock appears stopped.
+The seconds form is doing double duty and that is why it is chosen: sky seconds
+per real second *is* the multiple of real time, so "1 s/s" reads as real time and
+"10 s/s" as ten times it without a word of explanation. The arrow keys nudge a
+minute, or a second with shift held — an eclipse is judged to a few seconds, and
+a minute is a fifth of the whole quantity being argued about.
 
 ### 9.3 The ghost overlay
 
@@ -760,19 +949,45 @@ one corresponds to a sentence above that would otherwise be unverified.
 - The same eclipses are **not** evenly spaced in *seen* time. That difference is
   the entire experiment and it gets its own assertion.
 - Io takes 3–4 minutes to enter the shadow, which is §5.5.
-- **The central one**: a synthetic log across 400 days, with a minute of reading
-  scatter, recovers *c* to within 3% — and does so with Io's epoch longitude
-  deliberately perturbed by 137°, which is what proves §6. Route 1 is held to
-  12%, and to being *worse* than route 2 on the same data; if the two-eclipse
-  version ever won, something would be wrong with the fit.
-- The fitted line passes through the origin to within a minute. An eclipse at
-  zero distance would be seen instantly, so the intercept is fitted rather than
-  forced, and its coming out near zero is a result rather than an assumption.
-- The quoted uncertainty covers the true value, and shrinks on cleaner readings.
+- **The central one**: a synthetic log across two years, with a minute of reading
+  scatter and **no true eclipse time consulted anywhere**, recovers *c* to within
+  10% — and does so with Io's epoch longitude deliberately perturbed by 137°,
+  which is what proves §6. Held at every campaign length the app offers, because
+  the error does *not* fall monotonically with span and a student who changes the
+  setting must never see the answer fall apart.
+- **Both ways of misfitting the timetable are pinned** (§7.2a): a second slow
+  term on a one-cycle run must return an absurd answer, and a single term on a
+  nine-year run must too. These guard a boundary that was measured rather than
+  reasoned, and neither failure announces itself in the arithmetic.
+- **A short run is refused**, including the 402-day case that looks long enough
+  and is not.
+- The quoted uncertainty shrinks on cleaner readings.
+- Route 1 lands within 45% — about Rømer's own 32% — and its two epochs cancel,
+  so shifting the whole timetable by an hour must not move the answer at all. If
+  that ever fails, a true time has crept back in.
 - **A key press matches the eclipse nearest it in *seen* time**, gives a lateness
-  of 30–55 minutes, and matching on *true* time instead fails. A press with no
-  eclipse near it returns nothing rather than an observation. This is the
-  regression suite for the 2 800-minute bug in §7.1.
+  of 30–55 minutes, and matching on *true* time instead fails **unless it is
+  asked for explicitly**. A press with no eclipse near it returns nothing rather
+  than an observation. This is the regression suite for the 2 800-minute bug in
+  §7.1.
+- **The control experiment is a genuine null** (§7.1a): the same eclipses, moon
+  and reading scatter, timed against the events themselves, leave no lateness
+  beyond the observer's own hand and a slope under three standard errors — while
+  the same run read against arrival times stands above twenty. Both spans of
+  Earth–Jupiter distance are asserted equal, so the null cannot be dismissed as a
+  shorter campaign.
+- **The log keeps the two experiments apart**: filtered, cleared and replaced by
+  mode, and a stored row that does not say which experiment it belongs to — or
+  which moon it is of — is discarded rather than assigned to one.
+- **The game's universe still works.** With light twenty times slower the delay
+  passes ten hours, and `nearestEclipse` must still match an arrival back to the
+  event behind it. That window was widened for exactly this and the test is what
+  stops it narrowing again.
+- **The clock's readout never reads zero while the clock is running.** Real time
+  is "1.0 s/s", not "0.000 d/s", and the scale climbs through minutes and hours
+  to days as the number would run out of room. Czech writes the fraction with a
+  comma, which is the third time in this family that a `toFixed` has had to be
+  routed back through the formatter.
 - The nearest approach is a real turning point rather than a low sample, lands
   near 4.2 AU, and the furthest near 6.2; the two alternate, and every nearest is
   closer than every furthest.
@@ -851,7 +1066,84 @@ Listed so they are not silently resolved by whoever touches the code first.
 
 ---
 
-## 15. Credit line
+## 15. The game — measuring an unknown speed of light
+
+**The second tab, and the answer to the demonstration's one real weakness.** A
+student who follows the demonstration has watched a measurement being explained,
+and explanation is not doing. The answer is on the wall of every physics
+classroom, so "you got 297 000" is checked against something already known — and
+the part that made this hard in 1676, not knowing whether the number you have is
+right, is exactly the part that has been removed.
+
+So: light is slowed by a factor between five and twenty, **drawn at random and
+not shown**. Same eclipses, same telescope, same timetable fitted from the same
+kind of log. Measure, commit, then find out.
+
+**Slower rather than faster**, deliberately. Faster light shrinks the effect
+toward nothing and the exercise becomes one in patience; slower light makes the
+effect *larger*, so the method is easier to carry out while the thing being
+measured stays genuinely unknown. What is being tested is whether a student can
+run the argument, not whether they can time a fade to the second. At fifteen
+times, Io's ghost sits 136° round its orbit from where it is seen — the whole
+device of the app, made unmissable.
+
+The bounds are not arbitrary. Below five it is the demonstration again. Above
+twenty the light time passes half of Io's 1.77-day period and the eyepiece stops
+resembling anything an astronomer would recognise.
+
+### 15.1 What the game required of the physics
+
+**One value threaded everywhere, not a second copy of the app.** `store
+.lightTimePerAuDays` is the only place the slowdown enters; `lightTimeDays`,
+`retardedPosition`, `seenAt`, `findEclipses`, `nextEclipse`, `nearestEclipse`,
+`delayCurve` and `buildScene` all take it as a parameter and default to the real
+constant. A fork of the physics for the game would have rotted within a week.
+
+Two things had to widen to survive it, and both are noted where they live:
+`seenAt` iterates six times rather than four, because the observer moves much
+further during a seventeen-hour crossing; and `nearestEclipse` searches two
+periods either side rather than one and a half, because matching an arrival back
+to its event now reaches much further into the past.
+
+### 15.2 Rules the game must keep
+
+- **Separate logs.** An observation made where light is fifteen times slower
+  would drag a fit across two universes with nothing on screen to say why.
+  `Logbook` holds both and hands views whichever the open tab is writing to.
+- **A new universe clears the game's log.** Silently keeping it would fit across
+  two different speeds of light and converge on neither.
+- **The reveal is one-way**, and the manual slowdown control appears only after
+  it. A game that let a student peek, adjust and re-measure would teach the one
+  habit this whole app exists to argue against.
+- **The verdict is in words, against the history.** Rømer was 32% out and right
+  about everything that mattered, so inside that deserves to be told so; and the
+  method's own systematic is a few percent, so nothing under five is skill.
+
+---
+
+## 16. Time and zoom are continuous
+
+**Zoom with the wheel, over the thing being zoomed.** A slider in the left dock
+is a fine way to *set* a magnification and a poor way to *find* one: the eye is
+on the instrument and the hand is somewhere else, so every adjustment is a round
+trip. `wheelZoom` is attached to the plan view, the Jovian inset and the
+telescope — and because the wheel is over one of them, nobody has to remember
+which slider belongs to which panel.
+
+**Multiplicative everywhere.** A fixed step of 0.5 is a doubling at the bottom of
+a zoom range and a rounding error at the top; a fixed *ratio* feels the same
+everywhere, which is the whole of what "natural" means here. The zoom sliders are
+therefore logarithmic too, so slider and wheel agree about what a nudge means.
+
+**Any rate can be typed.** The log slider finds a pace; the number beside it
+pins one. "Run at exactly four seconds of sky per second" is a reasonable thing
+to want when setting up an observation and an unreasonable thing to ask of a
+drag. The unit is sky-seconds per real second, which spans the whole range as a
+number a person can read and, at the slow end, *is* the multiple of real time.
+
+---
+
+## 17. Credit line
 
 An imprint, not a banner: `© <year> Richard Lipka · lipka@fav.zcu.cz ·
 home.zcu.cz/~lipka`, with the FAV and KIV marks beside it, small, at the foot of

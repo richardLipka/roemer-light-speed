@@ -109,6 +109,7 @@ export function delayCurve(
   jdFrom: number,
   jdTo: number,
   stepDays = 5,
+  perAuDays?: number,
 ): DelaySample[] {
   const samples: DelaySample[] = [];
   for (let jd = jdFrom; jd <= jdTo; jd += stepDays) {
@@ -116,7 +117,7 @@ export function delayCurve(
     samples.push({
       jd,
       distanceAu,
-      minutes: (lightTimeDays(distanceAu) * SECONDS_PER_DAY) / 60,
+      minutes: (lightTimeDays(distanceAu, perAuDays) * SECONDS_PER_DAY) / 60,
     });
   }
   return samples;

@@ -34,9 +34,19 @@ import { LIGHT_TIME_PER_AU_DAYS } from './constants.js';
  */
 export type PositionsAt = (jd: number) => PositionSet;
 
-/** Light travel time over a distance in AU, expressed in days. */
-export const lightTimeDays = (distanceAu: number): number =>
-  distanceAu * LIGHT_TIME_PER_AU_DAYS;
+/**
+ * Light travel time over a distance in AU, expressed in days.
+ *
+ * `perAuDays` is a parameter rather than the constant because the app runs two
+ * universes: the historical one, and the game's, where light is five to twenty
+ * times slower and the student has to find out by how much. Everything below
+ * threads it through instead of importing the constant, so the game is the same
+ * instrument in a different universe rather than a second copy of the physics.
+ */
+export const lightTimeDays = (
+  distanceAu: number,
+  perAuDays: number = LIGHT_TIME_PER_AU_DAYS,
+): number => distanceAu * perAuDays;
 
 export interface Retarded {
   /** Where the body was when the light left it — what the observer sees. */
@@ -65,6 +75,7 @@ export function retardedPosition(
   target: BodyId,
   observer: BodyId,
   jdObserve: number,
+  perAuDays: number = LIGHT_TIME_PER_AU_DAYS,
   toleranceDays = 1e-9,
 ): Retarded {
   const observerPosition = required(positionsAt(jdObserve), observer);
@@ -77,8 +88,10 @@ export function retardedPosition(
 
   // Three passes is ample at solar-system distances; the loop is capped at six
   // so a pathological input fails loudly in a test rather than hanging a frame.
+  // Slower light converges more slowly — the correction per pass goes as v/c,
+  // twenty times larger in the game — but six is still ample for that.
   for (; iterations < 6; iterations++) {
-    const next = lightTimeDays(distanceAu);
+    const next = lightTimeDays(distanceAu, perAuDays);
     const converged = Math.abs(next - tau) < toleranceDays;
     tau = next;
     jdEmitted = jdObserve - tau;
@@ -106,8 +119,9 @@ export function lightTimeBetween(
   target: BodyId,
   observer: BodyId,
   jdObserve: number,
+  perAuDays: number = LIGHT_TIME_PER_AU_DAYS,
 ): number {
-  return retardedPosition(positionsAt, target, observer, jdObserve).lightTimeDays;
+  return retardedPosition(positionsAt, target, observer, jdObserve, perAuDays).lightTimeDays;
 }
 
 /**
@@ -130,15 +144,18 @@ export function seenAt(
   target: BodyId,
   observer: BodyId,
   jdTrue: number,
+  perAuDays: number = LIGHT_TIME_PER_AU_DAYS,
 ): { jdSeen: number; lightTimeDays: number; distanceAu: number } {
   const emitted = required(positionsAt(jdTrue), target);
 
   let tau = 0;
   let distanceAu = 0;
-  for (let i = 0; i < 4; i++) {
+  // Six rather than four: with the game's slower light the observer moves much
+  // further during the crossing, so the correction pass has more to do.
+  for (let i = 0; i < 6; i++) {
     const observerAtArrival = required(positionsAt(jdTrue + tau), observer);
     distanceAu = length(sub(observerAtArrival, emitted));
-    const next = lightTimeDays(distanceAu);
+    const next = lightTimeDays(distanceAu, perAuDays);
     if (Math.abs(next - tau) < 1e-9) {
       tau = next;
       break;

@@ -21,10 +21,11 @@ import { AU_IN_KM } from '@orrery/core';
 
 import { translate } from '../i18n/i18n.js';
 import { GALILEAN_IDS } from '../physics/constants.js';
-import type { Store } from '../state/store.js';
+import { MAX_MOON_ZOOM, MIN_ZOOM, type Store } from '../state/store.js';
 import { el } from './dom.js';
 import { number } from './format.js';
 import type { Scene } from './scene.js';
+import { wheelZoom } from './wheelZoom.js';
 
 /** Callisto's orbit — the widest the inset has to hold, at zoom 1. */
 const OUTERMOST_AU = 1_882_700 / AU_IN_KM;
@@ -39,6 +40,13 @@ export function createJovian(store: Store): JovianView {
   const planet = el('div', 'jovian__planet');
   const field = el('div', 'jovian__field');
   field.append(shadow, planet);
+
+  wheelZoom(field, {
+    read: () => store.current.moonZoom,
+    write: (moonZoom) => store.patch({ moonZoom }),
+    min: MIN_ZOOM,
+    max: MAX_MOON_ZOOM,
+  });
 
   const markers = GALILEAN_IDS.map((id) => {
     const orbit = el('div', `jovian__orbit jovian__orbit--${id}`);
