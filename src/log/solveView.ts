@@ -15,9 +15,9 @@ import { AU_IN_KM } from '@orrery/core';
 
 import { translate } from '../i18n/i18n.js';
 import {
+  analyse,
   type FullSolution,
   MINIMUM_RUN_DAYS,
-  solveFromAll,
   solveFromTwo,
   widestPair,
 } from '../physics/solve.js';
@@ -46,12 +46,13 @@ export function createSolveView(store: Store, log: Logbook): SolveView {
     // questions and a fit across both would answer neither.
     const entries = log.in(timingMode);
 
-    if (entries.length < 3) {
+    // Not `entries.length < 3`: the timetable drops any kind of event seen only
+    // once, so three observations can leave two usable rows. See `analyse`.
+    const full = analyse(entries, store.referenceSpeedKmPerS);
+    if (!full) {
       fill(body, el('p', 'note note--live', translate(locale, 'solve.needMore')));
       return;
     }
-
-    const full = solveFromAll(entries, store.referenceSpeedKmPerS);
 
     /*
      * Too short a run, and no amount of care rescues it.

@@ -120,12 +120,22 @@ export function createControls(store: Store, actions: ControlActions): ControlsV
       if ((event as KeyboardEvent).key === 'Enter') commit();
     });
 
+    // Halve and double. A stepper wants a step you can predict without looking,
+    // and on a logarithmic quantity that is a *ratio* — "twice as fast" is a
+    // thing a person can hold, where "0.5 d/s more" is not. Twenty-three presses
+    // cross the whole seven decades, which is the right coarseness for a control
+    // that sits beside a slider covering the range.
+    const nudgeRate = (factor: number) =>
+      store.patch({ rateDaysPerSecond: rateDaysPerSecond * factor });
+
     transport.append(
       button('button', translate(locale, running ? 'clock.pause' : 'clock.play'), () => {
         actions.toggleClock();
         render();
       }),
+      button('button button--quiet', '−', () => nudgeRate(0.5)),
       el('span', 'controls__readout', rateLabel(locale, rateDaysPerSecond)),
+      button('button button--quiet', '+', () => nudgeRate(2)),
       exact,
       el('span', 'controls__unit', translate(locale, 'clock.skySeconds')),
     );

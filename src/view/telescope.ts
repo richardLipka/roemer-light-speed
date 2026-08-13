@@ -34,7 +34,7 @@ import { GALILEAN_IDS, type GalileanId, JUPITER_SHADOW_RADIUS_KM } from '../phys
 import type { TimingMode } from '../physics/solve.js';
 import { MAX_MOON_ZOOM, MIN_ZOOM, type Store } from '../state/store.js';
 import { el } from './dom.js';
-import { number } from './format.js';
+import { dateAndTime, number } from './format.js';
 import type { Scene } from './scene.js';
 import { wheelZoom } from './wheelZoom.js';
 
@@ -104,18 +104,29 @@ export function createTelescope(store: Store): TelescopeView {
   });
 
   const title = el('h2', 'panel__title');
+  /**
+   * The observing clock, to the second.
+   *
+   * This is the panel where eclipses are timed, and until now the only date on
+   * screen was three panels away in the readout. An observer reads the moment
+   * off the clock beside the eyepiece, and a student pressing the button had to
+   * take on trust that anything was being written down at all. Seconds, because
+   * the whole measurement is a difference of minutes.
+   */
+  const clock = el('p', 'telescope__clock');
   const status = el('p', 'telescope__status');
   const delay = el('p', 'note note--live telescope__delay');
   const hint = el('p', 'note');
 
   const root = el('section', 'panel telescope');
-  root.append(title, field, status, delay, hint);
+  root.append(title, clock, field, status, delay, hint);
 
   return {
     root,
     render(scene) {
       const { locale, moon: watched, moonZoom, timingMode } = store.current;
       title.textContent = translate(locale, 'telescope.title');
+      clock.textContent = dateAndTime(locale, scene.jd);
       hint.textContent = translate(locale, 'telescope.hint');
 
       // Half the strip covers Callisto's orbit at zoom 1; the zoom then pushes

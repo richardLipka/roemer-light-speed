@@ -16,7 +16,7 @@
 import { AU_IN_KM } from '@orrery/core';
 
 import { translate } from '../i18n/i18n.js';
-import { solveFromAll } from '../physics/solve.js';
+import { analyse } from '../physics/solve.js';
 import type { Logbook } from '../state/log.js';
 import type { Store } from '../state/store.js';
 import { el, fill } from './dom.js';
@@ -90,8 +90,9 @@ export function createComparison(store: Store, log: Logbook): ComparisonView {
       // indistinguishable from zero, and turning that into "your measurement
       // says the delay is 3 seconds" would dress up a null result as a bad
       // measurement — the opposite of what it shows. See `solveView.ts`.
-      const entries = log.in(store.current.timingMode);
-      const solution = entries.length >= 3 ? solveFromAll(entries) : null;
+      // `analyse`, not `solveFromAll`: three observations do not guarantee three
+      // usable rows, and the difference used to be a crash.
+      const solution = analyse(log.in(store.current.timingMode), store.referenceSpeedKmPerS);
 
       if (solution && solution.slopeSigma >= 3) {
         const theirMinutes = (scene.earthJupiterAu * (AU_IN_KM / solution.speedKmPerS)) / 60;

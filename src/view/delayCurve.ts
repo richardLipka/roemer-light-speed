@@ -43,6 +43,8 @@
  * correct.
  */
 
+import { calendarFromJd, jdFromCalendar } from '@orrery/core';
+
 import { translate } from '../i18n/i18n.js';
 import { delayCurve, extremaBetween } from '../physics/configuration.js';
 import { buildTimetables } from '../physics/solve.js';
@@ -75,16 +77,37 @@ export function createDelayCurve(store: Store, log: Logbook): DelayCurveView {
   const field = el('div', 'curve__field');
   const axisHigh = el('span', 'curve__tick curve__tick--high');
   const axisLow = el('span', 'curve__tick curve__tick--low');
+  const axisX = el('div', 'curve__axisX');
   const caption = el('p', 'curve__caption');
   const overlayNote = el('p', 'note note--live curve__overlayNote');
 
   const plot = el('div', 'curve__plot');
-  plot.append(axisHigh, axisLow, field);
+  plot.append(axisHigh, axisLow, field, axisX);
 
   const root = el('section', 'panel curve');
   root.append(title, intro, plot, overlayNote, caption);
 
   const playhead = el('div', 'curve__playhead');
+
+  /**
+   * Click the plot to go there.
+   *
+   * The panel already answers "where in the cycle am I" with the playhead; this
+   * makes it answer "take me there", which is the question a student actually
+   * has once they can see that the effect is largest at one end. The alternative
+   * was scrubbing the clock and watching the playhead, which is the same
+   * navigation performed backwards and by feel.
+   *
+   * Seeks whether or not the clock is running: pausing first would be a second
+   * decision imposed on a single intention.
+   */
+  field.addEventListener('click', (event) => {
+    const box = field.getBoundingClientRect();
+    if (box.width === 0) return;
+    const fraction = Math.min(1, Math.max(0, (event.clientX - box.left) / box.width));
+    store.clock.setJd(START + fraction * spanDays);
+    store.ticked();
+  });
 
   // The model curve for a given span, kept so that changing the span is the only
   // thing that pays for it. Twelve years is some two thousand engine calls
@@ -132,20 +155,35 @@ export function createDelayCurve(store: Store, log: Logbook): DelayCurveView {
     const middle = minutes.reduce((sum, m) => sum + m, 0) / minutes.length;
     const variation = samples.map((s) => s.minutes - middle);
 
+    /*
+     * In the game the model's curve *is* the answer, drawn to scale.
+     *
+     * The panel is kept — a student needs somewhere to watch their readings rise
+     * and fall — but it is built from their observations alone, with nothing
+     * plotted that they did not measure. Handing them the curve to lay their
+     * points on would be handing them the answer and asking them to check it,
+     * which is not the same exercise at all.
+     */
+    const showModel = store.truthVisible;
+
     // The axis has to hold the readings as well as the curve, or the control
     // experiment draws its flat line at zero somewhere off the bottom of the box
     // and the very comparison the panel exists for cannot be seen.
     const readings = buildTimetables(log.in(timingMode)).rows;
     const readingMinutes = readings.map((r) => r.residualSeconds / 60);
-    yMin = Math.floor(Math.min(...variation, ...readingMinutes) - 1);
-    yMax = Math.ceil(Math.max(...variation, ...readingMinutes) + 1);
+    const spread = [...(showModel ? variation : []), ...readingMinutes];
+    // An empty game plot has neither curve nor readings and no range at all.
+    yMin = spread.length ? Math.floor(Math.min(...spread) - 1) : -2;
+    yMax = spread.length ? Math.ceil(Math.max(...spread) + 1) : 2;
 
-    const nodes: HTMLElement[] = samples.map((sample, i) => {
-      const dot = el('div', 'curve__dot');
-      dot.style.setProperty('--x', `${toX(sample.jd)}%`);
-      dot.style.setProperty('--y', `${toY(variation[i]!)}%`);
-      return dot;
-    });
+    const nodes: HTMLElement[] = showModel
+      ? samples.map((sample, i) => {
+          const dot = el('div', 'curve__dot');
+          dot.style.setProperty('--x', `${toX(sample.jd)}%`);
+          dot.style.setProperty('--y', `${toY(variation[i]!)}%`);
+          return dot;
+        })
+      : [];
 
     const markNodes = marks.map((mark) => {
       const node = el('div', `curve__mark curve__mark--${mark.kind}`);
@@ -171,37 +209,84 @@ export function createDelayCurve(store: Store, log: Logbook): DelayCurveView {
     }
 
     field.replaceChildren(...nodes, ...markNodes, ...readingNodes, playhead);
+    buildYearAxis();
     dirty = false;
   };
 
+  /**
+   * The bottom axis, in Earth years.
+   *
+   * The caption used to carry the only statement of when the window ran — "from
+   * 1 January 1676 to 31 December 1678" — which tells you the ends and nothing
+   * about the middle. A student looking at a point two thirds along had no way
+   * to say when it was, and the whole argument of the panel is about *when*
+   * things happen relative to Jupiter's 399-day cycle. Years are the unit that
+   * makes the mismatch legible: the delay peaks drift steadily later against
+   * them, because 399 days is not a year.
+   *
+   * Labelled every year up to six of them and every other year beyond, because
+   * twelve labels across a plot this wide overlap into a grey smear.
+   */
+  function buildYearAxis(): void {
+    const firstYear = calendarFromJd(START).year;
+    const years = Math.ceil(spanDays / DAYS_PER_YEAR);
+    const every = years > 6 ? 2 : 1;
+
+    const ticks: HTMLElement[] = [];
+    for (let k = 0; k <= years; k += every) {
+      const jd = jdFromCalendar(firstYear + k, 1, 1);
+      if (jd > START + spanDays) break;
+      const x = toX(jd);
+      // Centred labels hang half their width past the ends of the axis, where
+      // the first one lands on top of the y-axis tick beneath it. The two
+      // outermost are aligned to their own edge instead; the stalk stays put.
+      const edge = x < 1 ? ' curve__year--first' : x > 99 ? ' curve__year--last' : '';
+      const tick = el('span', `curve__year${edge}`, String(firstYear + k));
+      tick.style.setProperty('--x', `${x}%`);
+      ticks.push(tick);
+    }
+    axisX.replaceChildren(...ticks);
+  }
+
   let builtYears = -1;
   let builtMode = '';
+  let builtTruth = true;
 
   return {
     root,
     render(jd) {
       const { locale, campaignYears, timingMode } = store.current;
+      const truth = store.truthVisible;
 
-      if (dirty || campaignYears !== builtYears || timingMode !== builtMode) {
+      if (
+        dirty ||
+        campaignYears !== builtYears ||
+        timingMode !== builtMode ||
+        truth !== builtTruth
+      ) {
         builtYears = campaignYears;
         builtMode = timingMode;
+        builtTruth = truth;
         rebuild();
       }
 
-      title.textContent = translate(locale, 'curve.title');
+      title.textContent = translate(locale, truth ? 'curve.title' : 'curve.titleGame');
       // The swing, not the two absolutes. Quoting "33 minutes at the nearest, 52
       // at the furthest" over an axis drawn as a variation about zero would put
-      // a number on screen that no tick mark agrees with.
-      intro.textContent = translate(locale, 'curve.intro', {
-        swing: number(locale, high - low, 0),
-      });
+      // a number on screen that no tick mark agrees with. And in the game it
+      // would put the answer on screen: the swing scales with the slowdown.
+      intro.textContent = truth
+        ? translate(locale, 'curve.intro', { swing: number(locale, high - low, 0) })
+        : translate(locale, 'curve.introGame');
       axisHigh.textContent = `${yMax} min`;
       axisLow.textContent = `${yMin} min`;
 
       const shown = log.countIn(timingMode);
-      overlayNote.textContent = shown
-        ? translate(locale, `curve.overlay.${timingMode}`, { count: number(locale, shown, 0) })
-        : translate(locale, 'curve.overlayEmpty');
+      overlayNote.textContent = !shown
+        ? translate(locale, truth ? 'curve.overlayEmpty' : 'curve.overlayEmptyGame')
+        : translate(locale, truth ? `curve.overlay.${timingMode}` : 'curve.overlayGame', {
+            count: number(locale, shown, 0),
+          });
 
       // The clock can be anywhere; the curve covers a fixed window. Beyond the
       // ends the playhead parks at the edge rather than drawing outside the axes.

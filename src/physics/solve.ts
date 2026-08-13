@@ -477,9 +477,35 @@ export function solveFromAll(
   referenceKmPerS = C_KM_PER_S,
   hintScale = 1,
 ): FullSolution {
+  const solution = analyse(observations, referenceKmPerS, hintScale);
+  if (!solution) throw new Error('need at least three usable eclipses');
+  return solution;
+}
+
+/**
+ * The analysis, or `null` when the log cannot support one.
+ *
+ * **Every view must come through here rather than through `solveFromAll`.**
+ * "Three observations" is not the same condition as "three usable rows", and
+ * the difference was a crash reachable in about a minute: record two
+ * disappearances and one reappearance, and the timetable drops the lone
+ * reappearance — a single event of a kind has its epoch fitted straight onto
+ * it, contributing a fabricated point at zero — leaving two rows for a fit that
+ * needs three. Each panel had guarded on the count of *observations*, so all
+ * three sailed past the check and the exception took the whole render down on
+ * page load.
+ *
+ * `solveFromAll` still throws, because the tests want a loud failure and a
+ * caller that has already checked wants the non-null type.
+ */
+export function analyse(
+  observations: readonly Observation[],
+  referenceKmPerS = C_KM_PER_S,
+  hintScale = 1,
+): FullSolution | null {
   const timings = buildTimetables(observations, hintScale);
   const rows = timings.rows;
-  if (rows.length < 3) throw new Error('need at least three usable eclipses');
+  if (rows.length < 3) return null;
 
   const points = rows.map((row) => ({
     distanceAu: row.observation.distanceAu,
@@ -497,9 +523,9 @@ export function solveFromAll(
     variance += dx * dx;
   }
 
-  if (variance === 0) {
-    throw new Error('every eclipse was at the same distance — nothing to compare');
-  }
+  // Every eclipse at the same distance: nothing to compare, and dividing by it
+  // would hand back an infinity dressed as a speed of light.
+  if (variance === 0) return null;
 
   const slopeSecondsPerAu = covariance / variance;
   const interceptSeconds = meanResidual - slopeSecondsPerAu * meanDistance;

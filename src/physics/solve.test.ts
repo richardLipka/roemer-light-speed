@@ -8,6 +8,7 @@ import { LIGHT_TIME_PER_AU_S, SECONDS_PER_DAY } from './constants.js';
 import { findEclipses } from './eclipses.js';
 import { cachedPositions, type PositionsAt } from './lightTime.js';
 import {
+  analyse,
   buildTimetables,
   type Observation,
   setSlowTermOverride,
@@ -202,6 +203,57 @@ describe('route 2 — the whole log', () => {
     const oneKind = syntheticLog(reference, { phase: 'disappearance' });
     expect(oneKind.every((o) => o.phase === 'disappearance')).toBe(true);
     expect(Math.abs(solveFromAll(oneKind).percentError)).toBeLessThan(10);
+  });
+});
+
+describe('a log too thin to analyse returns nothing rather than throwing', () => {
+  /*
+   * The regression suite for a crash a student could reach in about a minute.
+   *
+   * Three panels each guarded on "at least three observations", which is not the
+   * condition that matters: the timetable drops any kind of event it has seen
+   * only once, so a log of two disappearances and one reappearance leaves two
+   * usable rows and the fit threw. On page load, with the log restored from
+   * storage, that exception took the whole render down.
+   */
+  const row = (jdRecorded: number, phase: Observation['phase'], distanceAu: number): Observation => ({
+    jdRecorded,
+    moon: 'io',
+    phase,
+    distanceAu,
+    mode: 'seen',
+  });
+
+  it('refuses three observations when one kind of event appears only once', () => {
+    expect(
+      analyse([
+        row(2_432_000, 'disappearance', 5.0),
+        row(2_432_002, 'disappearance', 5.1),
+        row(2_432_003, 'reappearance', 5.2),
+      ]),
+    ).toBeNull();
+  });
+
+  it('refuses an empty log and a single reading', () => {
+    expect(analyse([])).toBeNull();
+    expect(analyse([row(2_432_000, 'disappearance', 5)])).toBeNull();
+  });
+
+  it('refuses a run in which every eclipse was at the same distance', () => {
+    // Nothing to compare, and dividing by it would return an infinity wearing
+    // the costume of a speed of light.
+    expect(
+      analyse([
+        row(2_432_000, 'disappearance', 5),
+        row(2_432_002, 'disappearance', 5),
+        row(2_432_004, 'disappearance', 5),
+        row(2_432_005, 'disappearance', 5),
+      ]),
+    ).toBeNull();
+  });
+
+  it('still throws from solveFromAll, which is the loud path the tests want', () => {
+    expect(() => solveFromAll([])).toThrow();
   });
 });
 

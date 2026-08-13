@@ -794,9 +794,30 @@ The axis is therefore scaled to hold the readings as well as the curve, or the
 flat line would be drawn off the bottom of the box and the one comparison the
 panel exists for could not be seen.
 
-Rebuilt only when the span, the mode or the log changes. Twelve years costs about
-110 ms in samples and turning points, which is nothing on a click and a visible
-stutter on every frame.
+Rebuilt only when the span, the mode, the log or the visibility of truth
+changes. Twelve years costs about 110 ms in samples and turning points, which is
+nothing on a click and a visible stutter on every frame.
+
+**The plot is also a seek control.** Click anywhere on it and the clock goes to
+that date, running or not. The panel already answered *where in the cycle am I*;
+this makes it answer *take me there*, which is the question a student actually
+has once they can see the effect is largest at one end.
+
+**The bottom axis is in Earth years.** The caption used to be the only statement
+of when the window ran — "from 1 January 1676 to 31 December 1678" — which gives
+the ends and nothing about the middle, on a panel whose whole argument is about
+*when* things happen relative to a 399-day cycle. Years are the unit that makes
+the mismatch legible: the peaks drift steadily later against them, because 399
+days is not a year. Labelled every year up to six and every other year beyond,
+and the two outermost labels align to their own edge so the first does not land
+on top of the y-axis tick beneath it.
+
+**In the game the model curve is not drawn at all.** It *is* the answer, plotted
+to scale — its swing is the light time, so its height scales with the slowdown.
+The panel stays, because a student needs somewhere to watch their readings rise
+and fall, but it is built from their observations alone and titled accordingly.
+Handing over the curve to lay their points on would be handing over the answer
+and asking them to check it, which is a different exercise entirely.
 
 ### 9.2a Time is a continuous control
 
@@ -1008,6 +1029,12 @@ one corresponds to a sentence above that would otherwise be unverified.
 - **The log keeps the two experiments apart**: filtered, cleared and replaced by
   mode, and a stored row that does not say which experiment it belongs to — or
   which moon it is of — is discarded rather than assigned to one.
+- **A log too thin to analyse returns nothing rather than throwing.** "Three
+  observations" is not "three usable rows": the timetable drops any kind of
+  event seen only once, so two disappearances and one reappearance leave two.
+  Every panel guarded on the wrong count, so a log a student could build in a
+  minute took the whole render down on the next page load. `analyse` is now the
+  only door the views use; `solveFromAll` keeps throwing for the tests.
 - **The game's universe still works.** With light twenty times slower the delay
   passes ten hours, and `nearestEclipse` must still match an arrival back to the
   event behind it. That window was widened for exactly this and the test is what
@@ -1185,6 +1212,19 @@ pins one. "Run at exactly four seconds of sky per second" is a reasonable thing
 to want when setting up an observation and an unreasonable thing to ask of a
 drag. The unit is sky-seconds per real second, which spans the whole range as a
 number a person can read and, at the slow end, *is* the multiple of real time.
+
+**And − / + halve and double it.** A stepper wants a step you can predict
+without looking, and on a logarithmic quantity that is a *ratio*: "twice as
+fast" is something a person can hold, where "0.5 d/s more" is not. Twenty-three
+presses cross the whole seven decades, which is the right coarseness beside a
+slider that already covers the range in one drag.
+
+**The observing clock lives in the telescope panel**, to the second. That is
+where eclipses are timed, and the only date on screen used to be three panels
+away in the readout — a student pressing the button had to take on trust that
+anything was being written down at all. Seconds, because the whole measurement
+is a difference of minutes; tabular figures, because at ten times real time a
+proportional font makes the line twitch as they run.
 
 ---
 

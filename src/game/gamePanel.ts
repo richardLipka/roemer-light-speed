@@ -27,7 +27,7 @@
 
 import { translate } from '../i18n/i18n.js';
 import { C_KM_PER_S } from '../physics/constants.js';
-import { solveFromAll } from '../physics/solve.js';
+import { analyse } from '../physics/solve.js';
 import type { Logbook } from '../state/log.js';
 import { MAX_SLOWDOWN, MIN_SLOWDOWN, type Store } from '../state/store.js';
 import { button, el, fill } from '../view/dom.js';
@@ -59,8 +59,10 @@ export function createGamePanel(store: Store, log: Logbook): GamePanelView {
     let measuredSlowdown: number | null = null;
     let errorPercent = 0;
 
-    if (entries.length >= 3) {
-      const solution = solveFromAll(entries, store.referenceSpeedKmPerS);
+    // `analyse`, not `solveFromAll`: three observations do not guarantee three
+    // usable rows, and the difference used to be a crash.
+    const solution = analyse(entries, store.referenceSpeedKmPerS);
+    if (solution) {
       if (!solution.timings.tooShort && solution.slopeSigma >= 3) {
         // Their speed against the real one: how many times slower this universe
         // looks from their data.

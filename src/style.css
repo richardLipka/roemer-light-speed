@@ -465,6 +465,15 @@
     box-shadow: 0 0 0 2px var(--brass-bright), 0 0 0.35rem rgb(207 216 228 / 70%);
   }
 
+  /* The observing clock. Tabular figures so the seconds do not jitter the
+     line as they run, which at ten times real time they very much would. */
+  .telescope__clock {
+    margin: 0.2rem 0 0;
+    font-variant-numeric: tabular-nums;
+    font-size: 0.95rem;
+    color: var(--brass);
+  }
+
   .telescope__status {
     margin: 0;
     color: var(--ink-soft);
@@ -641,6 +650,52 @@
     border-left: 1px solid var(--ink-soft);
     border-bottom: 1px solid var(--ink-soft);
     background: rgb(255 255 255 / 30%);
+    /* The plot is a seek control: click anywhere to take the clock there. */
+    cursor: pointer;
+  }
+
+  /* The bottom axis, in Earth years — see `buildYearAxis` in delayCurve.ts. */
+  .curve__axisX {
+    position: relative;
+    height: 1.1rem;
+  }
+
+  .curve__year {
+    position: absolute;
+    left: var(--x);
+    top: 0.1rem;
+    translate: -50% 0;
+    font-size: 0.68rem;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink-soft);
+    white-space: nowrap;
+  }
+
+  /* The outermost labels align to their own edge so they stay inside the plot;
+     the stalk keeps pointing at the date, which is why it is positioned
+     separately from the text rather than centred under it. */
+  .curve__year--first {
+    translate: 0 0;
+  }
+  .curve__year--last {
+    translate: -100% 0;
+  }
+
+  /* A short stalk joining each label to the axis it belongs to. */
+  .curve__year::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: -0.25rem;
+    height: 0.25rem;
+    border-left: 1px solid var(--ink-soft);
+  }
+
+  .curve__year--first::before {
+    left: 0;
+  }
+  .curve__year--last::before {
+    left: 100%;
   }
 
   .curve__dot {
