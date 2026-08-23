@@ -127,7 +127,11 @@ export function createTelescope(store: Store): TelescopeView {
       const { locale, moon: watched, moonZoom, timingMode } = store.current;
       title.textContent = translate(locale, 'telescope.title');
       clock.textContent = dateAndTime(locale, scene.jd);
-      hint.textContent = translate(locale, 'telescope.hint');
+      // The hint names the moon, so it needs the substitution — without it the
+      // literal placeholder was reaching the screen.
+      hint.textContent = translate(locale, 'telescope.hint', {
+        moon: translate(locale, `moon.${watched}`),
+      });
 
       // Half the strip covers Callisto's orbit at zoom 1; the zoom then pushes
       // the inner moons out to where they can be told apart.
