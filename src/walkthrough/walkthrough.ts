@@ -43,7 +43,9 @@ export function createWalkthrough(store: Store): WalkthroughView {
       total: STEP_COUNT,
     });
     title.textContent = translate(locale, titleKey(walkthroughStep));
-    body.textContent = translate(locale, bodyKey(walkthroughStep));
+    // innerHTML, not textContent: some steps carry a Wikipedia link baked
+    // into the dictionary string — see `dom.ts`'s `elHtml`.
+    body.innerHTML = translate(locale, bodyKey(walkthroughStep));
 
     const previous = button('button button--quiet', translate(locale, 'walkthrough.previous'), () =>
       goTo(walkthroughStep - 1),

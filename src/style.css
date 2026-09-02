@@ -629,6 +629,24 @@
     font-style: normal;
   }
 
+  /*
+   * A named person, moon, planet or place mentioned in the explanatory text,
+   * pointing out to its Wikipedia article. Styled like the imprint's own
+   * links (`.credit a`) rather than a default blue, so it reads as part of
+   * the parchment rather than a web-app affordance.
+   */
+  .wiki-link {
+    color: inherit;
+    text-decoration: underline;
+    text-decoration-color: var(--brass);
+    text-underline-offset: 0.15em;
+  }
+
+  .wiki-link:hover {
+    color: var(--brass);
+    text-decoration-color: currentColor;
+  }
+
   .notice {
     margin: 0;
     padding: 0.45rem 0.7rem;

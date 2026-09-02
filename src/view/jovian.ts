@@ -102,7 +102,9 @@ export function createJovian(store: Store): JovianView {
       shadow.style.setProperty('--length', `${OUTERMOST_AU * unit * 1.4}%`);
 
       title.textContent = translate(locale, 'jovian.title');
-      clock.textContent = translate(locale, 'jovian.clock');
+      // innerHTML: this note carries Wikipedia links for the four moons,
+      // Jupiter and Earth — see `dom.ts`'s `elHtml`.
+      clock.innerHTML = translate(locale, 'jovian.clock');
 
       // The caption quotes the delay and the angle it turns into, so in the game
       // it waits for the reveal along with everything else that states the

@@ -24,7 +24,7 @@ import {
 } from '../physics/solve.js';
 import type { Logbook } from '../state/log.js';
 import type { Store } from '../state/store.js';
-import { el, fill } from '../view/dom.js';
+import { el, elHtml, fill } from '../view/dom.js';
 import { number, percent, speed } from '../view/format.js';
 
 export interface SolveView {
@@ -78,7 +78,7 @@ export function createSolveView(store: Store, log: Logbook): SolveView {
         body,
         ...(step1 ? [step1] : []),
         el('h3', 'solve__routeTitle', translate(locale, 'solve.shortTitle')),
-        el('p', 'note note--live', translate(locale, 'solve.shortBody')),
+        elHtml('p', 'note note--live', translate(locale, 'solve.shortBody')),
         el(
           'p',
           'solve__step',
@@ -113,7 +113,7 @@ export function createSolveView(store: Store, log: Logbook): SolveView {
         el('p', 'solve__answer', translate(locale, 'solve.flatResult')),
         el('p', 'note note--live', translate(locale, 'solve.flatBody')),
         plot(store, full),
-        el('p', 'note note--live', translate(locale, 'solve.flatCompare')),
+        elHtml('p', 'note note--live', translate(locale, 'solve.flatCompare')),
       );
       return;
     }
@@ -175,7 +175,7 @@ export function createSolveView(store: Store, log: Logbook): SolveView {
           seconds: number(locale, full.rmsResidualSeconds, 0),
         }),
       ),
-      el('p', 'note', translate(locale, 'solve.meanNote')),
+      elHtml('p', 'note', translate(locale, 'solve.meanNote')),
     );
 
     /*
@@ -201,7 +201,7 @@ export function createSolveView(store: Store, log: Logbook): SolveView {
             percent: percent(locale, Math.abs(full.percentError)),
           }),
         ),
-        el('p', 'note', translate(locale, 'solve.roemer')),
+        elHtml('p', 'note', translate(locale, 'solve.roemer')),
       );
     }
 
@@ -256,7 +256,7 @@ function buildStepOne(store: Store, full: FullSolution): HTMLElement | null {
         seconds: number(locale, evidence.scatterSeconds, 0),
       }),
     ),
-    el(
+    elHtml(
       'p',
       'note note--live',
       translate(locale, 'solve.step1Rhythm', {
@@ -267,7 +267,7 @@ function buildStepOne(store: Store, full: FullSolution): HTMLElement | null {
   );
 
   if (table.slowTermCount > 1) {
-    clock.append(el('p', 'note', translate(locale, 'solve.step1Drift')));
+    clock.append(elHtml('p', 'note', translate(locale, 'solve.step1Drift')));
   }
   return clock;
 }

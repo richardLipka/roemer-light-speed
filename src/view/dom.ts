@@ -1,4 +1,4 @@
-/** The three lines of DOM helper this app needs, and no framework. */
+/** The DOM helpers this app needs, and no framework. */
 
 export function el<K extends keyof HTMLElementTagNameMap>(
   tag: K,
@@ -8,6 +8,23 @@ export function el<K extends keyof HTMLElementTagNameMap>(
   const node = document.createElement(tag);
   if (className) node.className = className;
   if (text !== undefined) node.textContent = text;
+  return node;
+}
+
+/**
+ * Like `el`, but the content is HTML rather than text — for the handful of
+ * translated strings that carry a Wikipedia link baked in (see `cs.json`).
+ * Only ever call this with a dictionary string, never with anything a
+ * visitor typed or a number formatted at runtime.
+ */
+export function elHtml<K extends keyof HTMLElementTagNameMap>(
+  tag: K,
+  className: string | undefined,
+  html: string,
+): HTMLElementTagNameMap[K] {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  node.innerHTML = html;
   return node;
 }
 
