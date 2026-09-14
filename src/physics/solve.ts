@@ -443,6 +443,20 @@ export interface TwoEclipseSolution {
   extraDelaySeconds: number;
   /** How much further it had to go, km. */
   extraDistanceKm: number;
+  /**
+   * Seconds for light to cross the **width of Earth's orbit** — two AU.
+   *
+   * **Rømer's own answer, and the only one he ever gave.** He reported 22
+   * minutes across Earth's orbit and stopped there, because the step from a time
+   * to a speed needs the size of the AU in kilometres and nobody had that in
+   * 1676 to better than a rough guess. Huygens took Cassini's 1672 parallax of
+   * Mars and did the division two years later.
+   *
+   * Quoting it first is not a flourish. A student who is handed km/s straight
+   * away never sees that the measurement and the conversion are separate acts,
+   * one of which Rømer could do and one of which he could not.
+   */
+  acrossOrbitSeconds: number;
   speedKmPerS: number;
   /** Signed, against whatever the universe's true value happens to be. */
   percentError: number;
@@ -467,8 +481,12 @@ export function solveFromTwo(
   referenceKmPerS = C_KM_PER_S,
 ): TwoEclipseSolution {
   const extraDelaySeconds = far.residualSeconds - near.residualSeconds;
-  const extraDistanceKm =
-    (far.observation.distanceAu - near.observation.distanceAu) * AU_IN_KM;
+  const extraDistanceAu = far.observation.distanceAu - near.observation.distanceAu;
+  const extraDistanceKm = extraDistanceAu * AU_IN_KM;
+
+  // Seconds per AU, doubled: Earth's orbit is two AU across, and the width is
+  // the span Rømer quoted his answer over.
+  const acrossOrbitSeconds = (2 * extraDelaySeconds) / extraDistanceAu;
 
   const speedKmPerS = extraDistanceKm / extraDelaySeconds;
   return {
@@ -478,6 +496,7 @@ export function solveFromTwo(
     farResidualSeconds: far.residualSeconds,
     extraDelaySeconds,
     extraDistanceKm,
+    acrossOrbitSeconds,
     speedKmPerS,
     percentError: (100 * (speedKmPerS - referenceKmPerS)) / referenceKmPerS,
   };

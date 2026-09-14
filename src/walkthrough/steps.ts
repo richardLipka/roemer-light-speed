@@ -44,5 +44,14 @@ export const WALKTHROUGH_STEPS: readonly WalkthroughStep[] = [
 
 export const STEP_COUNT = WALKTHROUGH_STEPS.length;
 
+/**
+ * The step that carries the prediction control.
+ *
+ * Named rather than written as a bare 5 in `walkthrough.ts`, because the number
+ * is a fact about Rømer's reasoning — the announcement comes after the idea and
+ * before the number — and not a layout detail to be nudged.
+ */
+export const PREDICTION_STEP = 5;
+
 export const titleKey = (step: number): string => `walkthrough.${step}.title`;
 export const bodyKey = (step: number): string => `walkthrough.${step}.body`;

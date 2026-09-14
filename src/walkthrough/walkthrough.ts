@@ -3,26 +3,34 @@
  *
  * Roughly one spoken minute per step, because this is the part a teacher
  * projects and talks over.
+ *
+ * **Step 5 carries a control, and only step 5.** It is the step CLAUDE.md §8
+ * gives the most weight to, and prose was all it had: the app said Rømer's
+ * announcement was what made this science, then offered the student nothing but
+ * hindsight. `predictionView` puts the announcement in their hands. It appears
+ * on that step alone — an instrument for making a prediction is meaningless
+ * beside step 1, and having it standing on every step would make it furniture.
  */
 
 import { translate } from '../i18n/i18n.js';
 import type { Store } from '../state/store.js';
 import { button, el } from '../view/dom.js';
-import { bodyKey, STEP_COUNT, titleKey, WALKTHROUGH_STEPS } from './steps.js';
+import type { PredictionView } from './predictionView.js';
+import { bodyKey, PREDICTION_STEP, STEP_COUNT, titleKey, WALKTHROUGH_STEPS } from './steps.js';
 
 export interface WalkthroughView {
   root: HTMLElement;
   render(): void;
 }
 
-export function createWalkthrough(store: Store): WalkthroughView {
+export function createWalkthrough(store: Store, prediction: PredictionView): WalkthroughView {
   const counter = el('p', 'walkthrough__counter');
   const title = el('h2', 'panel__title');
   const body = el('p', 'walkthrough__body');
   const actions = el('div', 'panel__actions');
 
   const root = el('section', 'panel walkthrough');
-  root.append(counter, title, body, actions);
+  root.append(counter, title, body, prediction.root, actions);
 
   const goTo = (step: number): void => {
     const clamped = Math.min(Math.max(step, 1), STEP_COUNT);
@@ -46,6 +54,10 @@ export function createWalkthrough(store: Store): WalkthroughView {
     // innerHTML, not textContent: some steps carry a Wikipedia link baked
     // into the dictionary string — see `dom.ts`'s `elHtml`.
     body.innerHTML = translate(locale, bodyKey(walkthroughStep));
+
+    const predicting = walkthroughStep === PREDICTION_STEP;
+    prediction.root.hidden = !predicting;
+    if (predicting) prediction.render();
 
     const previous = button('button button--quiet', translate(locale, 'walkthrough.previous'), () =>
       goTo(walkthroughStep - 1),

@@ -168,6 +168,17 @@ export function createSolveView(store: Store, log: Logbook): SolveView {
             km: number(locale, simple.extraDistanceKm, 0),
           }),
         ),
+        // Rømer's own answer first, in the units he actually reported, before
+        // anything is divided. He never had the AU in kilometres and so never
+        // had a speed — see `acrossOrbitSeconds`.
+        el(
+          'p',
+          'solve__answer',
+          translate(locale, 'solve.simpleAcrossOrbit', {
+            minutes: number(locale, simple.acrossOrbitSeconds / 60, 1),
+          }),
+        ),
+        elHtml('p', 'note', translate(locale, 'solve.simpleNeedsAu')),
         el(
           'p',
           'solve__answer',

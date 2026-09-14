@@ -18,13 +18,14 @@ import { BODIES } from '@orrery/core';
 
 import { translate } from './i18n/i18n.js';
 import { earthJupiterAu, nextExtremum } from './physics/configuration.js';
-import { GALILEAN_IDS } from './physics/constants.js';
+import { GALILEAN_IDS, SECONDS_PER_DAY } from './physics/constants.js';
 import { type Eclipse, nearestEclipse, nextEclipse } from './physics/eclipses.js';
 import type { Observation } from './physics/solve.js';
 import { Logbook } from './state/log.js';
 import { CLOSE_UP_RATE, OPENING_JD, Store } from './state/store.js';
 import { createLogPanel } from './log/logPanel.js';
 import { createSolveView } from './log/solveView.js';
+import { createPredictionView } from './walkthrough/predictionView.js';
 import { createWalkthrough } from './walkthrough/walkthrough.js';
 import { createGamePanel } from './game/gamePanel.js';
 import { createControls } from './view/controls.js';
@@ -181,7 +182,40 @@ const map = createMap(store);
 const jovian = createJovian(store);
 const readout = createReadout(store);
 const telescope = createTelescope(store);
-const walkthrough = createWalkthrough(store);
+/**
+ * Step 5 of the walkthrough is the announcement, and it needs the clock as well
+ * as the log — see `predictionView`.
+ *
+ * **This plays the gap rather than jumping over it**, and that is the whole
+ * demonstration. The clock lands four minutes before the *earlier* of the two
+ * predicted times and starts running, so the student watches the steady table's
+ * moment arrive with the moon still plainly shining, and then waits while it
+ * fades minutes later. A button that merely teleported to the answer would make
+ * the same point in words; this one makes it happen.
+ *
+ * The rate is set from the gap so the wait is around forty seconds whatever the
+ * two predictions happen to be — a class will sit through that, and the fade
+ * still takes several seconds, which is long enough to press a button on
+ * purpose. Never slower than the close-up rate, which is the app's own idea of
+ * a judgeable pace.
+ */
+const prediction = createPredictionView(store, log, {
+  goTo(jd, gapSeconds) {
+    const WATCH_SECONDS = 40;
+    const LEAD_MINUTES = 4;
+    const spanSeconds = gapSeconds + LEAD_MINUTES * 2 * 60;
+
+    store.clock.setJd(jd - LEAD_MINUTES / 1440);
+    store.patch({
+      rateDaysPerSecond: Math.max(CLOSE_UP_RATE, spanSeconds / WATCH_SECONDS / SECONDS_PER_DAY),
+      moonZoom: closeUpZoom(store.current.moon),
+    });
+    store.clock.play();
+    store.ticked();
+    revealTelescope();
+  },
+});
+const walkthrough = createWalkthrough(store, prediction);
 const logPanel = createLogPanel(store, log, loadSampleLog, () => record());
 const solveView = createSolveView(store, log);
 const controls = createControls(store, actions);

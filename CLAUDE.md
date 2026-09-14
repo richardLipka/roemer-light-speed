@@ -692,6 +692,73 @@ eclipse on 9 November 1676. Say what Rømer predicted and what was seen as
 moment — Earth far from Jupiter, the delay near its maximum — which it does get
 right.
 
+### 8.1 Step 5 carries a control: the student makes the announcement
+
+That limitation is about reproducing *history*. It says nothing about the
+student making **their own** prediction inside the model's own consistent
+universe, and that is the actual intellectual move — so step 5 now has an
+instrument under the prose (`walkthrough/predictionView.ts`, `physics/predict.ts`).
+
+**The gap this closes.** Every other route to the answer in this app is
+hindsight: gather eclipses, fit a line, admire the line. An explanation cut to
+fit data already in hand is cheap, and a student who has only ever done that has
+not seen what Rømer did. The panel states this document's own claim — that the
+announcement is what made it science — and then gives the student nothing but
+curve-fitting. Now it gives them the bet.
+
+Two clock times for one eclipse nobody in the log has watched:
+
+- **The steady table.** A constant period fitted to their own readings and
+  extrapolated past the end of the run. Cassini's table, made Cassini's way, and
+  it knows nothing about light.
+- **The corrected time.** The same eclipse plus the delay *their own* measured
+  seconds-per-AU says the light will pick up on the way.
+
+Then a button that goes there and **plays the gap** rather than jumping over it:
+the clock lands four minutes before the earlier prediction and runs, so the
+steady table's moment arrives with the moon plainly still shining, and the fade
+comes minutes later. The student presses the button in the log, and the panel
+scores the two *predictions* against their own reading — never against the
+model's truth, which they do not have.
+
+**Three things were measured to make it a real bet, not theatre.**
+
+- **The table must be a straight line, not the analysis's fit.** The analysis
+  lets the interval drift because over years it does (§7.2a), but that fit is a
+  polynomial and a polynomial extrapolated past its data does what polynomials
+  do. Measured: the two-term fit on a six-year run, carried 200 days, missed by
+  more than the whole light-time signal and lost the bet outright.
+- **The window must be exactly one synodic cycle.** Over one cycle the
+  light-time oscillation completes exactly one period inside the window, so the
+  least-squares line through it comes out flat and the fitted period is the
+  uniform clock's. Over 1.5 or 2 or 3 cycles the leftover part of a cycle leaves
+  a trend, the period swallows some of it, and the correction stops matching what
+  was absorbed. One cycle leaves the corrected prediction within 1.3 to 3.3
+  minutes of the sky at every campaign length, against a steady table out by 10 to
+  21. Three cycles leaves it out by 9.5 — as wrong as the thing it is correcting.
+- **The correction is measured against the line, not the mean.** Fitting a
+  straight line to seen times absorbs every part of the light delay a straight
+  line can follow, its *trend* as well as its average. Correcting by the change
+  since the run's average double-counts that, and lost the bet on a twelve-year
+  run before it was caught.
+
+`predict.test.ts` holds the bet to its terms: the corrected time must win against
+a genuine future eclipse, at every campaign length, and the panel must refuse to
+appear at all when the log cannot support a measurement — a short run, or the
+control experiment, where a prediction would be a coin toss dressed as physics.
+
+### 8.2 Step 2 quotes Rømer's answer before it quotes a speed
+
+He never computed a speed. He reported **22 minutes across the width of Earth's
+orbit** and stopped, because the step from a time to a speed needs the size of
+the AU in kilometres and nobody had that in 1676 to better than a rough guess;
+Huygens took Cassini's 1672 parallax of Mars and did the division two years
+later. The simple route therefore states the time first (`acrossOrbitSeconds`),
+says plainly that this is as far as Rømer got and why, and only then divides. A
+student handed km/s straight away never sees that the measurement and the
+conversion are separate acts, one of which he could do and one of which he could
+not.
+
 ---
 
 ## 9. The view
