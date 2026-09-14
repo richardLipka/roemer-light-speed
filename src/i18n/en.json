@@ -166,17 +166,17 @@
   "game.setLabel": "Slowdown",
   "footer.copyright": "© {year} Richard Lipka",
   "predict.title": "Now you do it",
-  "predict.needMore": "You need something to predict with first. Gather at least two years of observations, work out your speed of light, then come back.",
-  "predict.intro": "Your measurement is a table now. We picked an eclipse you have not watched and worked out two times for it. One is what a steady rhythm says; the other adds the delay your own figure says the light will pick up on the way.",
+  "predict.needMore": "You need something to predict with first. Gather two years of observations at least, and work out your speed of light. Then come back.",
+  "predict.intro": "Your measurement is a table now. We picked an eclipse you have not watched and worked out two times for it. One is what a steady rhythm predicts. The other adds the delay your own figure says the light will pick up on the way.",
   "predict.steadyLabel": "Steady table",
   "predict.correctedLabel": "With your light delay",
   "predict.gap": "They are {gap} apart. Jupiter will be {au} AU further off than the steady table allows for, and your measurement says {perAu} s for every AU.",
   "predict.go": "Go there and watch",
   "predict.howTo": "When the moon goes, press the button in Your observations. Whichever time you land on wins.",
-  "predict.wonLight": "You called it. The steady table was out by {steady}; your correction was out by {corrected}.",
+  "predict.wonLight": "You called it. The steady table missed by {steady}; you were out by {corrected}.",
   "predict.wonLightNote": "This is what Rømer did in September 1676 — in public, in front of people who did not believe him. The eclipse came as he said. An explanation that gets something right before it happens is a different kind of thing from one cut to fit data already in hand.",
   "predict.wonSteady": "Not this time. You were {steady} from the steady table and {corrected} from your correction.",
-  "predict.wonSteadyNote": "Either you pressed early or late against the real fade, or your speed of light is still well out. Try a longer run and predict again.",
+  "predict.wonSteadyNote": "Either you pressed too early or too late, or your speed of light is still well out. Try a longer run and predict again.",
   "solve.simpleAcrossOrbit": "Light crosses the width of Earth's orbit in {minutes} minutes. That is exactly how Rømer put it — and his figure was 22.",
-  "solve.simpleNeedsAu": "He could go no further on his own. Turning minutes into kilometres per second means knowing how big an AU really is, and in 1676 nobody did to any accuracy. <a class=\"wiki-link\" href=\"https://en.wikipedia.org/wiki/Christiaan_Huygens\" target=\"_blank\" rel=\"noopener noreferrer\">Huygens</a> supplied the kilometres two years later."
+  "solve.simpleNeedsAu": "He could go no further on his own. Turning minutes into kilometres per second means knowing how big an AU really is, and in 1676 nobody knew that to any accuracy. <a class=\"wiki-link\" href=\"https://en.wikipedia.org/wiki/Christiaan_Huygens\" target=\"_blank\" rel=\"noopener noreferrer\">Huygens</a> supplied the kilometres two years later."
 }
