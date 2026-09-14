@@ -64,15 +64,66 @@ function jdWatched(eclipse: Eclipse): number {
   return store.current.timingMode === 'seen' ? eclipse.jdSeen : eclipse.jdTrue;
 }
 
-/** The next eclipse of the watched moon, in whichever universe is on screen. */
-function upcoming(): Eclipse {
-  return nextEclipse(
-    scenePositions,
-    store.current.moon,
-    store.clock.julianDate,
-    undefined,
-    store.lightTimePerAuDays,
+/**
+ * The next eclipse of the watched moon, in whichever universe is on screen.
+ *
+ * Null when there genuinely is not one coming, which is not a failure and not
+ * rare: Callisto's eclipse seasons are total, and it goes as long as seventy
+ * revolutions — nearly three and a half years — without entering the shadow at
+ * all. This used to throw, and the throw went straight through the click
+ * handler for "skip to the next eclipse", so choosing Callisto on most dates
+ * broke the button. Saying so is better than either crashing or pretending.
+ */
+function upcoming(): Eclipse | null {
+  try {
+    return nextEclipse(
+      scenePositions,
+      store.current.moon,
+      store.clock.julianDate,
+      undefined,
+      store.lightTimePerAuDays,
+    );
+  } catch {
+    return null;
+  }
+}
+
+/** Reports the out-of-season case in the log panel, where the student is looking. */
+function reportNoEclipse(): void {
+  const { locale, moon } = store.current;
+  logPanel.report(
+    translate(locale, 'log.outOfSeason', { moon: translate(locale, `moon.${moon}`) }),
   );
+}
+
+/**
+ * Bring the eyepiece into view, because on most screens it is not.
+ *
+ * The middle column scrolls, and the three panels in it come to about 1 380
+ * pixels — so on a 1600×1000 display the telescope begins 1 040 pixels into a
+ * 904-pixel viewport and is entirely below the fold on load. Meanwhile the log
+ * panel, over in the right dock, opens with *"watch the upper row of the
+ * telescope"*. A student following the instructions was being told to look at
+ * something they had to go and find first, with nothing on screen to say it was
+ * there.
+ *
+ * Both of these buttons mean "I want to watch an eclipse", so they are exactly
+ * the moment to put the instrument in front of the student rather than leaving
+ * the scroll bar to say it.
+ *
+ * **Instant, not smooth**, for the same reason `renderScene` does not trust the
+ * animation frame. A smooth scroll is animated, so a throttled tab or a
+ * projector that has stopped painting simply never performs it — measured, it
+ * left `scrollTop` at zero while the instant form scrolled correctly. This is
+ * also a jump between two parts of one instrument, like the "nearest" and
+ * "furthest" buttons above, and those do not animate either.
+ *
+ * `block: 'nearest'` scrolls the least that does the job, so a student who has
+ * already scrolled the telescope into view is not yanked around for pressing
+ * the button a second time.
+ */
+function revealTelescope(): void {
+  telescope.root.scrollIntoView({ block: 'nearest', behavior: 'auto' });
 }
 
 const actions = {
@@ -82,9 +133,11 @@ const actions = {
   },
   nextEclipse(): void {
     const eclipse = upcoming();
+    if (!eclipse) return reportNoEclipse();
     // Stop a little before it, so the fade can actually be watched.
     store.clock.setJd(jdWatched(eclipse) - 4 / 1440);
     store.ticked();
+    revealTelescope();
   },
   /**
    * The eclipse at something like the pace it happens.
@@ -105,10 +158,12 @@ const actions = {
   watchCloseUp(): void {
     const { moon } = store.current;
     const eclipse = upcoming();
+    if (!eclipse) return reportNoEclipse();
     store.clock.setJd(jdWatched(eclipse) - 5 / 1440);
     store.patch({ rateDaysPerSecond: CLOSE_UP_RATE, moonZoom: closeUpZoom(moon) });
     store.clock.play();
     store.ticked();
+    revealTelescope();
   },
   jumpNearest(): void {
     store.clock.setJd(nextExtremum(scenePositions, store.clock.julianDate, 'nearest'));
@@ -237,6 +292,16 @@ const DAYS_PER_YEAR = 365.25;
  * the wrong thing about measurement (CLAUDE.md §7.4). It is applied identically
  * in both modes, so the flat result of the control experiment is a genuine null
  * and not a tidier version of the real one.
+ *
+ * **No eclipse may appear twice.** The grid is a wish, not a guarantee: where
+ * eclipses are sparser than the spacing, asking for "the next one after day 55"
+ * and "the next one after day 73" returns the same event. Unchecked, that put
+ * 113 duplicate rows into Callisto's 240-observation twelve-year log — the same
+ * eclipse timed over and over, which is not something any observer can do, and
+ * which quietly told the fit that one event was worth thirty. So the search
+ * starts from whichever is later, the grid or just past the last eclipse taken,
+ * and the run simply ends when the eclipses run out. A short honest log beats a
+ * long padded one.
  */
 function loadSampleLog(): void {
   const { moon, timingMode, campaignYears } = store.current;
@@ -245,15 +310,36 @@ function loadSampleLog(): void {
 
   const count = Math.round(SAMPLES_PER_YEAR * campaignYears);
   const spacing = (campaignYears * DAYS_PER_YEAR) / count;
+  const end = OPENING_JD + campaignYears * DAYS_PER_YEAR;
+
+  // Just past the last eclipse taken, so the next search cannot return it again.
+  let cursor = OPENING_JD;
 
   for (let i = 0; i < count; i++) {
-    const eclipse = nextEclipse(
-      scenePositions,
-      moon,
-      OPENING_JD + i * spacing,
-      'disappearance',
-      store.lightTimePerAuDays,
-    );
+    const from = Math.max(cursor, OPENING_JD + i * spacing);
+    if (from >= end) break;
+
+    let eclipse;
+    try {
+      eclipse = nextEclipse(
+        scenePositions,
+        moon,
+        from,
+        'disappearance',
+        store.lightTimePerAuDays,
+      );
+    } catch {
+      // Callisto can go seventy revolutions without one. Stop rather than throw:
+      // the log is short because the sky was, and that is worth seeing.
+      break;
+    }
+
+    // Past the campaign window the readings would fall outside the stretch the
+    // delay curve draws, and the overlay that makes the periodicity visible
+    // would have points it could not plot.
+    if (eclipse.jdTrue >= end) break;
+    cursor = eclipse.jdTrue + 1 / 1440;
+
     const slip = (random() - 0.5) * 150; // seconds, a human judging a fade
     const watched = timingMode === 'seen' ? eclipse.jdSeen : eclipse.jdTrue;
     const jdRecorded = watched + slip / 86_400;

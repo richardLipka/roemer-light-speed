@@ -17,9 +17,10 @@
  */
 
 import type { BodyId } from '@orrery/core';
-import { BODIES, GM_SUN } from '@orrery/core';
+import { AU_IN_KM, BODIES, GM_SUN } from '@orrery/core';
 import { satelliteOffsetAt } from '@orrery/core/satellites';
 
+import { JUPITER_SHADOW_RADIUS_KM, umbraLengthKm } from './constants.js';
 import { type PositionsAt, seenAt } from './lightTime.js';
 import { type ShadowAxis, shadowAxis, shadowFunctionKm } from './shadow.js';
 
@@ -87,8 +88,54 @@ export function eclipsePeriodDays(moon: BodyId): number {
 
 const TOLERANCE_DAYS = 1e-7; // ≈ 9 ms, far finer than anything observed here
 
-/** Samples per orbit when hunting for sign changes. Io: one every 53 minutes. */
-const SAMPLES_PER_ORBIT = 48;
+/**
+ * How finely the shadow function is sampled when hunting for sign changes —
+ * **scaled to the eclipse, not to the orbit.**
+ *
+ * This was `orbit.periodDays / 48`, and for the outer two moons that is a step
+ * longer than the eclipse it is looking for. Measured against a brute-force
+ * scan, it stepped clean over **14 of Callisto's 22 eclipses in 1676** and 3 of
+ * Ganymede's 51 — and the misses were then written up, here and in
+ * `eclipseSeasons.test.ts` and CLAUDE.md §2.1a, as though they were the moons
+ * clearing the shadow. They were not. Both moons are eclipsed on *every*
+ * revolution in those years; the sampler simply never looked.
+ *
+ * What sets the scale is how long the moon spends inside the umbra, which has
+ * nothing to do with its period: the umbra is a fixed ~140 000 km wide and the
+ * outer moons crawl across it. Io takes 137 minutes to cross and is sampled
+ * every 53; Callisto takes 284 and was sampled every 501.
+ *
+ * So the step is one sixteenth of a central crossing. That leaves margin for
+ * the grazing passes at the edges of a real eclipse season, which are far
+ * shorter than a central one — Callisto's shortest in sixteen years is 40
+ * minutes against an 18-minute step. Nothing catches a grazing eclipse of
+ * arbitrarily short duration, and nothing can; the point is that the step is
+ * now set by the thing being looked for.
+ *
+ * The cost is paid in `satelliteOffsetAt`, which is analytic and cheap. The
+ * engine is untouched: `AXIS_REFRESH_DAYS` below bounds those calls by elapsed
+ * time, not by sample count.
+ */
+const SAMPLES_PER_CROSSING = 16;
+
+/**
+ * Sampling step for one moon, days — a sixteenth of the time it takes to cross
+ * the umbra, and never coarser than the old period-based rule.
+ *
+ * The umbra is sized at a representative 5.2 AU. Its width varies by about 1%
+ * over Jupiter's orbit, which is nothing against a sixteenfold margin.
+ */
+function scanStepDays(moon: BodyId): number {
+  const orbit = BODIES[moon].satellite;
+  if (!orbit) throw new Error(`'${moon}' is not a satellite`);
+
+  const radiusKm = orbit.a * AU_IN_KM;
+  const speedKmPerDay = (2 * Math.PI * radiusKm) / orbit.periodDays;
+  const umbraKm = JUPITER_SHADOW_RADIUS_KM * (1 - radiusKm / umbraLengthKm(5.2));
+  const crossingDays = (2 * umbraKm) / speedKmPerDay;
+
+  return Math.min(orbit.periodDays / 48, crossingDays / SAMPLES_PER_CROSSING);
+}
 
 /**
  * How stale the shadow axis is allowed to get during the *bracketing* pass.
@@ -121,7 +168,7 @@ export function findEclipses(
   const orbit = BODIES[moon].satellite;
   if (!orbit) throw new Error(`'${moon}' is not a satellite`);
 
-  const step = orbit.periodDays / SAMPLES_PER_ORBIT;
+  const step = scanStepDays(moon);
   const found: Eclipse[] = [];
 
   let axis = axisAt(positionsAt, moon, jdFrom);
@@ -138,8 +185,12 @@ export function findEclipses(
 
     if (previous > 0 !== current > 0) {
       const phase: EclipsePhase = previous > 0 ? 'disappearance' : 'reappearance';
+      // Null when the bracket does not survive a fresh axis — see `refine`. The
+      // sign change was then an artefact of the axis being refreshed mid-step,
+      // not a crossing, and inventing an eclipse for it would put a fabricated
+      // row in a student's log.
       const jdTrue = refine(positionsAt, moon, previousJd, jd, axis);
-      found.push(describe(positionsAt, moon, phase, jdTrue, perAuDays));
+      if (jdTrue !== null) found.push(describe(positionsAt, moon, phase, jdTrue, perAuDays));
     }
 
     previousJd = jd;
@@ -156,17 +207,25 @@ export function findEclipses(
  * Searches an orbit at a time so that a moon with a 16-day period does not pay
  * Io's sampling density.
  *
- * **Not every revolution produces an eclipse**, and the outer moons are the
- * reason the search window is as wide as it is. A moon is eclipsed every orbit
- * only while its excursion out of Jupiter's orbital plane stays inside the
- * umbra, and that fails further out: measured over a year, Io and Europa are
- * eclipsed on every revolution, Ganymede on 48 of 51, and **Callisto on only 8
- * of 21** — its 72 601 km out-of-plane swing exceeds the 69 981 km umbra at its
- * distance, so it slips above or below the shadow for long stretches. That is
- * not a defect in the model; real Callisto has eclipse seasons for the same
- * reason. Callisto's widest measured gap is five orbits, so twenty is a genuine
- * margin rather than the "cannot happen" the first version assumed.
+ * **Not every revolution produces an eclipse, and Callisto can go years.** A
+ * moon is eclipsed on a given revolution only while its excursion out of
+ * Jupiter's orbital plane keeps it inside the umbra at the moment it passes
+ * behind the planet. Io, Europa and Ganymede never fail that test. Callisto,
+ * whose 72 601 km swing exceeds the 69 981 km umbra at its distance, fails it
+ * for years at a time: measured against a brute-force scan, it is eclipsed on
+ * **every** one of its 22 revolutions in 1676 and 1682, and on **none at all**
+ * in 1679 or 1685. Real Callisto has eclipse seasons for exactly this reason.
+ *
+ * Those seasons are what sets the search window. The widest true gap over
+ * sixteen years is 1 240 days — **74 revolutions** — so the old cap of twenty
+ * did not merely run short, it threw on most dates a student could pick:
+ * choosing Callisto and pressing "skip to the next eclipse" in 1678, 1679,
+ * 1680 or 1685 took the click handler down. The cap is now 90 revolutions,
+ * which clears the measured worst case with room, and the throw is a genuine
+ * "there is no eclipse coming" rather than "we stopped looking too early".
  */
+const MAX_REVOLUTIONS_SEARCHED = 90;
+
 export function nextEclipse(
   positionsAt: PositionsAt,
   moon: BodyId,
@@ -177,7 +236,8 @@ export function nextEclipse(
   const orbit = BODIES[moon].satellite;
   if (!orbit) throw new Error(`'${moon}' is not a satellite`);
 
-  for (let start = jdFrom; start < jdFrom + 20 * orbit.periodDays; start += orbit.periodDays) {
+  const limit = jdFrom + MAX_REVOLUTIONS_SEARCHED * orbit.periodDays;
+  for (let start = jdFrom; start < limit; start += orbit.periodDays) {
     for (const eclipse of findEclipses(
       positionsAt,
       moon,
@@ -189,7 +249,9 @@ export function nextEclipse(
     }
   }
 
-  throw new Error(`no eclipse of '${moon}' within twenty orbits of JD ${jdFrom}`);
+  throw new Error(
+    `no eclipse of '${moon}' within ${MAX_REVOLUTIONS_SEARCHED} orbits of JD ${jdFrom}`,
+  );
 }
 
 /**
@@ -262,6 +324,13 @@ export function nearestEclipse(
  * The first pass holds the shadow axis fixed, which is what keeps the engine out
  * of the loop. The second pass costs one more engine call and removes the ~13 km
  * of axis rotation the first pass ignored.
+ *
+ * Null when the first pass finds no crossing at all. That happens when the sign
+ * change came from the axis being refreshed between two samples rather than
+ * from the moon moving, which can only occur within a few kilometres of a
+ * grazing pass — but "a few kilometres" is exactly where a real grazing eclipse
+ * lives, so the answer has to be *no eclipse* rather than a midpoint dressed up
+ * as one.
  */
 function refine(
   positionsAt: PositionsAt,
@@ -269,23 +338,24 @@ function refine(
   low: number,
   high: number,
   axis: ShadowAxis,
-): number {
+): number | null {
   const first = bisect(moon, low, high, axis);
+  if (first === null) return null;
+
   const refinedAxis = axisAt(positionsAt, moon, first);
   const window = (high - low) / 64;
-  return bisect(moon, first - window, first + window, refinedAxis);
+  // If the fresh axis moves the root outside the re-cut window, the first pass
+  // is still a good answer — it is only the ~13 km of axis rotation that goes
+  // uncorrected — so fall back to it rather than discarding a real eclipse.
+  return bisect(moon, first - window, first + window, refinedAxis) ?? first;
 }
 
-function bisect(moon: BodyId, low: number, high: number, axis: ShadowAxis): number {
+function bisect(moon: BodyId, low: number, high: number, axis: ShadowAxis): number | null {
   let a = low;
   let b = high;
   const fa = shadowFunctionKm(axis, offsetAt(a, moon));
-
-  // The refinement window is opened around a root, so it is bracketed by
-  // construction unless the axis moved further than the window — which would be
-  // a bug in the reasoning above rather than a case to recover from.
   const fb = shadowFunctionKm(axis, offsetAt(b, moon));
-  if (fa > 0 === fb > 0) return (a + b) / 2;
+  if (fa > 0 === fb > 0) return null;
 
   const negativeAtLow = fa < 0;
   while (b - a > TOLERANCE_DAYS) {

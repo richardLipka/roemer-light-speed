@@ -80,14 +80,24 @@ Every factual claim in the interface was checked against the model rather than
 against memory, and four were wrong. They are listed because the *kind* of error
 matters more than the individual fixes.
 
-- **"Each moon disappears into the shadow once every orbit."** False for half of
-  them. A moon is eclipsed every revolution only while its excursion out of
-  Jupiter's orbital plane stays inside the umbra, and that fails further out:
-  measured over a year, Io and Europa are eclipsed on every revolution, Ganymede
-  on 48 of 51, and **Callisto on only 8 of 21** — 72 601 km out of plane against
-  a 69 981 km umbra at its distance. Real Callisto has eclipse seasons for the
-  same reason, so the model was right and the sentence was wrong.
-  `eclipseSeasons.test.ts` now holds the whole table.
+- **"Each moon disappears into the shadow once every orbit."** False, but not in
+  the way this document claimed for a long time. A moon is eclipsed every
+  revolution only while its excursion out of Jupiter's orbital plane keeps it
+  inside the umbra as it passes behind the planet. **Io, Europa and Ganymede
+  never fail that test.** Callisto — 72 601 km out of plane against a 69 981 km
+  umbra at its distance — fails it for *years at a time*: eclipsed on every one
+  of its 22 revolutions in 1676 and 1682, and on **none at all** in 1679 or
+  1685. Real Callisto has eclipse seasons for the same reason.
+
+  The earlier version of this entry read "Ganymede on 48 of 51, Callisto on only
+  8 of 21", and **both figures were a bug in the scanner, not astronomy.** The
+  sampling step was `period / 48`, which for the outer moons is longer than the
+  eclipse being looked for, so it stepped straight over real events — 14 of
+  Callisto's 22 in 1676. The step is now a sixteenth of a shadow crossing
+  (`eclipses.ts`), and `eclipseSeasons.test.ts` checks the scanner against a
+  brute-force scan rather than against its own output, which is what would have
+  caught this at the time. A measurement that only ever checks itself is the one
+  kind of claim this document must not make.
 - **"The best hope of working out longitude at sea."** The Galilean moons never
   worked at sea — a telescope will not hold steady on a rolling deck. They did
   solve longitude *on land*, and redrew the map of Europe. The corrected line
@@ -742,9 +752,9 @@ panel whose entire job is showing them. Square, at zoom 1, all four fit.
 
 The inset carries a standing paragraph on **why these bodies are a clock at
 all** — each moon circles at a fixed rate, Io every 1.77 days through to
-Callisto's 16.69. Io and Europa vanish into the shadow on every revolution; the
-outer two sometimes slip past it (§2.1a — Callisto on only 8 of 21). That is the
-premise the whole measurement rests on, and without it the panel is a pretty
+Callisto's 16.69. The inner three vanish into the shadow on every revolution;
+Callisto alone has eclipse seasons, and goes years without one (§2.1a). That is
+the premise the whole measurement rests on, and without it the panel is a pretty
 diagram. The argument a student has to be able to make is: *if the eclipses
 arrive at the wrong time, the fault cannot be in the clock.*
 

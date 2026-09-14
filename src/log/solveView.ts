@@ -92,17 +92,33 @@ export function createSolveView(store: Store, log: Logbook): SolveView {
     }
 
     /*
-     * Nothing to divide by.
+     * Nothing to divide by — and **two quite different reasons for it.**
      *
-     * Timing the events themselves gives a slope of zero plus the student's own
-     * scatter, and `AU / slope` on a slope that is pure noise yields a confident
-     * six-digit speed of light with a colossal error bar attached. Printing it
-     * and letting the error bar carry the warning would be a trap: the eye reads
-     * the big number. So below three standard errors this says outright that
-     * there is no dependence on distance here, which is the correct reading of
-     * the experiment and the whole reason for running it.
+     * `AU / slope` on a slope that is pure noise yields a confident six-digit
+     * speed of light with a colossal error bar attached. Printing it and letting
+     * the error bar carry the warning would be a trap: the eye reads the big
+     * number. So below three standard errors this says outright that there is no
+     * dependence on distance here.
+     *
+     * Why there is none depends on which experiment produced the run, and this
+     * used to give the same answer to both. In the control experiment the slope
+     * is zero because there is genuinely no light delay to find, which is the
+     * whole point of running it. But a flat result also turns up while timing
+     * what you *see*, on Ganymede and Callisto, and there the explanation
+     * printed — *"you timed the eclipse itself, not the moment the news
+     * arrived"* — was simply false, and told a student they had done the control
+     * experiment when they had not.
+     *
+     * The real reason is the moon. The outer two cross the shadow on a chord
+     * whose length varies from pass to pass, so the moment of disappearance
+     * wanders against a uniform clock: measured in true time, with no light and
+     * no observer involved, Io departs from a steady tick by 338 s across two
+     * years, Ganymede by 1 871 s and **Callisto by 5 676 s** — against a signal
+     * worth 996. That is why Rømer used Io, and saying so is worth more than
+     * hiding it behind a wrong sentence.
      */
     if (full.slopeSigma < 3) {
+      const control = timingMode === 'true';
       fill(
         body,
         // Step one still holds in the control experiment, and holding is the
@@ -111,9 +127,17 @@ export function createSolveView(store: Store, log: Logbook): SolveView {
         ...(step1 ? [step1] : []),
         el('h3', 'solve__routeTitle', translate(locale, 'solve.flatTitle')),
         el('p', 'solve__answer', translate(locale, 'solve.flatResult')),
-        el('p', 'note note--live', translate(locale, 'solve.flatBody')),
+        el(
+          'p',
+          'note note--live',
+          translate(locale, control ? 'solve.flatBody' : 'solve.flatScatter'),
+        ),
         plot(store, full),
-        elHtml('p', 'note note--live', translate(locale, 'solve.flatCompare')),
+        elHtml(
+          'p',
+          'note note--live',
+          translate(locale, control ? 'solve.flatCompare' : 'solve.flatTryIo'),
+        ),
       );
       return;
     }
